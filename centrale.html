@@ -55,6 +55,7 @@
     <button data-v="tarifs">Tarifs</button>
     <button data-v="comptes">Comptes</button>
     <button data-v="messages" id="nav-msg">Messages</button>
+    <button data-v="reglages">Réglages</button>
     <button id="mode-ch" style="background: var(--nuit); color: #fffbf8">Mode chauffeur</button>
     <button id="deco">Quitter</button>
   </nav>
@@ -155,6 +156,40 @@
       <button id="co-creer" class="btn btn-plein" style="align-self: flex-start">Créer le compte</button>
     </div>
     <div id="liste-comptes" class="pile"></div>
+  </section>
+
+  <!-- Réglages -->
+  <section id="v-reglages" class="cache pile">
+    <h1 style="font-size: 28px">Réglages</h1>
+    <div class="rangee">
+      <div class="carte pile col-g">
+        <div class="h2" style="font-size: 18px">Entreprise</div>
+        <p class="petit doux" style="margin: 0">Sert aux factures des clients et au bouton « Appeler la centrale ».</p>
+        <div><label for="r-nom">Nom</label><input id="r-nom"></div>
+        <div><label for="r-tel">Téléphone de la centrale</label><input id="r-tel" type="tel" placeholder="506 000-0000"></div>
+        <div><label for="r-adr">Adresse d’affaires</label><input id="r-adr"></div>
+        <div><label for="r-cour">Courriel</label><input id="r-cour" type="email"></div>
+        <div class="grille2"><div><label for="r-tps">N° TPS/TVH</label><input id="r-tps"></div><div><label for="r-tvq">N° TVQ</label><input id="r-tvq"></div></div>
+        <button class="btn btn-plein" style="align-self: flex-start" id="r-s1">Enregistrer</button>
+      </div>
+      <div class="carte pile col-g">
+        <div class="h2" style="font-size: 18px">Heures d’ouverture</div>
+        <div class="segment" id="r-mode"><button data-m="24h">24 h sur 24</button><button data-m="horaire">Horaire</button><button data-m="ferme">Fermé</button></div>
+        <div class="grille2" id="r-heures"><div><label for="r-deb">Ouverture</label><input id="r-deb" type="time"></div><div><label for="r-fin">Fermeture</label><input id="r-fin" type="time"></div></div>
+        <div><label for="r-msg">Message aux clients quand c’est fermé</label><textarea id="r-msg" rows="2"></textarea></div>
+        <p class="petit doux" style="margin: 0">Fermé, les clients peuvent quand même réserver pour plus tard. La centrale peut toujours entrer des appels.</p>
+        <button class="btn btn-plein" style="align-self: flex-start" id="r-s2">Enregistrer</button>
+      </div>
+      <div class="carte pile col-g">
+        <div class="h2" style="font-size: 18px">Répartition et annulations</div>
+        <div><label for="r-delai">Temps pour accepter une offre (secondes)</label><input id="r-delai" type="number" min="10" max="120"></div>
+        <div><label for="r-resa">Offrir une réservation combien de minutes avant ?</label><input id="r-resa" type="number" min="5" max="120"></div>
+        <div><label for="r-rayon">Zone de service : rayon autour de Campbellton (km)</label><input id="r-rayon" type="number" min="5" max="400"></div>
+        <div class="grille2"><div><label for="r-frais">Frais d’annulation ($)</label><input id="r-frais" type="number" step="0.01" min="0"></div><div><label for="r-gratuit">Annulation gratuite pendant (min)</label><input id="r-gratuit" type="number" min="0"></div></div>
+        <p class="petit doux" style="margin: 0">Les frais s’appliquent quand le client annule après ce délai, une fois qu’un chauffeur a accepté. Ils sont notés dans l’historique, à percevoir à la prochaine course.</p>
+        <button class="btn btn-plein" style="align-self: flex-start" id="r-s3">Enregistrer</button>
+      </div>
+    </div>
   </section>
 
   <!-- Messages -->

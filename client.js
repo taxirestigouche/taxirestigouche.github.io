@@ -3,6 +3,7 @@
   var T = Taxi, $ = T.$, $$ = T.$$, sb = T.sb, esc = T.esc;
   var moi = await T.exigerRole(['client', 'centrale']);
   if (!moi) return;
+  var PARAMS = await T.parametres();
   var L_ = moi.langue === 'en' ? 'en' : 'fr';
   localStorage.setItem('taxi-langue', L_);
 
@@ -243,7 +244,11 @@
     $('#f-comm').value = ''; montrerForm();
   };
   $('#annuler').onclick = async function () {
-    if (!courseActive || !confirm(t.confAnnuler)) return;
+    if (!courseActive) return;
+    var rp = PARAMS.repartition || {}, fr = Number(rp.frais_annulation || 0), msg = t.confAnnuler;
+    if (fr && courseActive.acceptee_le && (Date.now() - new Date(courseActive.acceptee_le)) > (rp.annulation_gratuite_min || 2) * 60e3)
+      msg += (L_ === 'en' ? '\nA cancellation fee of ' : '\nDes frais d’annulation de ') + T.argent(fr) + (L_ === 'en' ? ' apply.' : ' s’appliquent.');
+    if (!confirm(msg)) return;
     var r = await sb.rpc('annuler_course', { p_id: courseActive.id });
     if (r.error) { T.toast(r.error.message, true); return; }
     courseActive = null; T.toast(t.annulee); montrerForm();

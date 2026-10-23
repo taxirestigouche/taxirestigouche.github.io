@@ -203,6 +203,20 @@
     var k = (vol || 0) * 1.3;
     return { km: k, min: k / 70 * 60 + 2 };
   }
+  var paramsCache = null;
+  async function parametres(force) {
+    if (paramsCache && !force) return paramsCache;
+    var r = await sb.from('parametres').select('cle,valeur');
+    paramsCache = {}; (r.data || []).forEach(function (p) { paramsCache[p.cle] = p.valeur; });
+    var e = paramsCache.entreprise || {};
+    ['nom', 'telephone', 'adresse', 'courriel', 'tps', 'tvq'].forEach(function (k) { if (e[k]) ENTREPRISE[k] = e[k]; });
+    return paramsCache;
+  }
+  async function sauverParametre(cle, valeur) {
+    var r = await sb.from('parametres').update({ valeur: valeur, maj_le: new Date().toISOString() }).eq('cle', cle);
+    if (r.error) throw r.error;
+    paramsCache = null; return parametres(true);
+  }
   var tarifsCache = null;
   async function tarifs(force) {
     if (tarifsCache && !force) return tarifsCache;
@@ -214,7 +228,8 @@
     var tf = t[prov] || t.NB;
     var brut = Number(tf.base) + Number(tf.km) * Math.max(0, kms) + Number(tf.minute) * Math.max(0, attenteS) / 60;
     var h = (moment || new Date()).getHours(), nuit = (h >= 23 || h < 5) ? Math.round(brut * Number(tf.nuit_pct)) / 100 : 0;
-    return { compteur: brut + nuit, nuit: nuit, redevance: Number(tf.redevance), total: brut + nuit + Number(tf.redevance) };
+    var cpt = Math.max(brut + nuit, Number(tf.minimum || 0));
+    return { compteur: cpt, nuit: nuit, redevance: Number(tf.redevance), total: cpt + Number(tf.redevance) };
   }
   // Détail des taxes (le compteur inclut les taxes)
   function taxes(prov, compteur, redevance) {
@@ -239,6 +254,10 @@
     if (lat != null) return 'https://www.google.com/maps/dir/?api=1&destination=' + lat + ',' + lng + '&travelmode=driving';
     return 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(texte) + '&travelmode=driving';
   }
+
+  // Erreurs visibles à l'écran (pour pouvoir les signaler)
+  window.addEventListener('error', function (e) { toast('Erreur : ' + (e.message || 'inconnue') + (e.lineno ? ' (ligne ' + e.lineno + ')' : ''), true); });
+  window.addEventListener('unhandledrejection', function (e) { var m = e.reason && (e.reason.message || e.reason.error_description || e.reason); toast('Erreur : ' + (m || 'inconnue'), true); });
 
   // Appli installable
   if ('serviceWorker' in navigator) { window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); }); }
@@ -273,7 +292,7 @@
     $: $, $$: $$, esc: esc, argent: argent, km: km, heure: heure, dateCourte: dateCourte, dateHeure: dateHeure,
     toast: toast, erreurMsg: erreurMsg, bip: bip, avis: avis, demanderAvis: demanderAvis,
     distance: distance, villeProche: villeProche, chercherAdresses: chercherAdresses, adresseDePosition: adresseDePosition,
-    trajet: trajet, tarifs: tarifs, prix: prix, taxes: taxes, carte: carte, marqueur: marqueur, lienNavigation: lienNavigation,
+    trajet: trajet, tarifs: tarifs, parametres: parametres, sauverParametre: sauverParametre, prix: prix, taxes: taxes, carte: carte, marqueur: marqueur, lienNavigation: lienNavigation,
     champAdresse: champAdresse, norm: norm
   };
 })();

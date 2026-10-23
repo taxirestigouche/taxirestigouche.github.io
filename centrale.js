@@ -7,6 +7,7 @@
   $('#deco').onclick = function () { T.deconnexion(); };
   $('#mode-ch').onclick = function () { location.href = 'chauffeur.html'; };
   var tarifs = await T.tarifs();
+  await T.parametres();
 
   var vue = 'repartition';
   $$('header nav button[data-v]').forEach(function (b) {
@@ -14,7 +15,7 @@
       vue = b.dataset.v;
       $$('header nav button[data-v]').forEach(function (x) { x.classList.toggle('actif', x === b); });
       $$('main > section').forEach(function (s) { s.classList.toggle('cache', s.id !== 'v-' + vue); });
-      ({ repartition: function () { setTimeout(function () { carte.invalidateSize(); }, 60); charger(); }, rapports: rapports, chauffeurs: chauffeurs, clients: clients, tarifs: vueTarifs, comptes: comptes, messages: function () { messages(true); } })[vue]();
+      ({ repartition: function () { setTimeout(function () { carte.invalidateSize(); }, 60); charger(); }, rapports: rapports, chauffeurs: chauffeurs, clients: clients, tarifs: vueTarifs, comptes: comptes, messages: function () { messages(true); }, reglages: reglages })[vue]();
     };
   });
   function modal(html) { $('#modal-boite').innerHTML = html; $('#modal').classList.remove('cache'); }
@@ -74,6 +75,7 @@
         '<div class="entre"><span class="gras">' + esc(c.client_nom || 'Client') + (c.source === 'telephone' ? ' <span class="petit doux">(appel)</span>' : '') + '</span><span class="pastille ' + l[1] + '">' + l[0] + '</span></div>' +
         '<div style="font-size: 14px"><span class="doux">De :</span> ' + esc(c.dep_adresse) + (c.dep_ville ? ', ' + esc(c.dep_ville) : '') + '<br><span class="doux">À :</span> ' + esc(c.dest_adresse) + (c.dest_ville ? ', ' + esc(c.dest_ville) : '') + '</div>' +
         '<div class="petit doux">' + (c.prevue_le ? 'Pour ' + T.dateHeure(c.prevue_le) + ' · ' : 'Commandée à ' + T.heure(c.cree_le) + ' · ') + ex.join(', ') + ' · ' + c.dep_prov + (c.client_tel ? ' · ' + T.telJoli(c.client_tel) : '') + (c.note ? '<br>« ' + esc(c.note) + ' »' : '') + '</div>';
+      if (c.note_centrale) h += '<div class="petit" style="background: var(--ambre-pale); padding: 6px 10px; border-radius: 10px">Note interne : ' + esc(c.note_centrale) + '</div>';
       if (c.statut === 'offerte') h += '<div class="petit gras" style="color: var(--ambre-fonce)">Offerte à ' + esc(nomCh(c.offerte_a)) + '…</div>';
       if (c.chauffeur_id) h += '<div class="petit gras" style="color: var(--sauge-fonce)">Chauffeur : ' + esc(nomCh(c.chauffeur_id)) + '</div>';
       if (['reservee', 'attente', 'offerte'].indexOf(c.statut) >= 0) {
@@ -84,11 +86,13 @@
       }
       h += '<div class="ligne" style="flex-wrap: wrap">';
       if (['acceptee', 'arrivee', 'offerte'].indexOf(c.statut) >= 0) h += '<button class="btn btn-contour btn-p" data-retirer="' + c.id + '">Retirer le chauffeur</button>';
+      h += '<button class="btn btn-contour btn-p" data-modcourse="' + c.id + '">Modifier</button>';
       if (c.statut !== 'en_course') h += '<button class="btn btn-lien" style="color: var(--terra-fonce); min-height: 40px" data-annuler="' + c.id + '">Annuler</button>';
       h += '</div></div>';
       return h;
     }).join('') : '<div class="carte vide">Aucune course en cours.</div>';
     $$('[data-attr]').forEach(function (b) { b.onclick = async function () { var r = await sb.rpc('attribuer', { p_id: +b.dataset.attr, p_chauffeur: b.dataset.ch }); if (r.error) T.toast(r.error.message, true); charger(); }; });
+    $$('[data-modcourse]').forEach(function (b) { b.onclick = function () { modifierCourse(coursesL.find(function (x) { return x.id === +b.dataset.modcourse; })); }; });
     $$('[data-retirer]').forEach(function (b) { b.onclick = async function () { var r = await sb.rpc('retirer', { p_id: +b.dataset.retirer }); if (r.error) T.toast(r.error.message, true); charger(); }; });
     $$('[data-annuler]').forEach(function (b) { b.onclick = async function () { if (!confirm('Annuler cette course ?')) return; var r = await sb.rpc('annuler_course', { p_id: +b.dataset.annuler }); if (r.error) T.toast(r.error.message, true); charger(); }; });
 
@@ -193,10 +197,24 @@
     $('#t-chauffeurs').innerHTML = '<tr><th>Chauffeur</th><th>Courses</th><th>Total compteur</th><th>Comptant à remettre</th><th>Km facturés</th><th>Note moyenne</th></tr>' + Object.keys(pc).map(function (k) {
       var x = pc[k]; return '<tr><td class="gras">' + esc(nomCh(k)) + '</td><td>' + x.n + '</td><td>' + T.argent(x.t) + '</td><td>' + T.argent(x.cash) + '</td><td>' + T.km(x.km) + '</td><td>' + (x.ev.length ? (x.ev.reduce(function (s, v) { return s + v; }, 0) / x.ev.length).toFixed(1).replace('.', ',') + ' ★' : '—') + '</td></tr>';
     }).join('');
-    $('#t-hist').innerHTML = '<tr><th>Date</th><th>Client</th><th>Trajet</th><th>Chauffeur</th><th>Statut</th><th>Total</th></tr>' + l.slice(0, 300).map(function (c) {
-      return '<tr><td>' + T.dateHeure(c.cree_le) + '</td><td>' + esc(c.client_nom || '') + '</td><td>' + esc(c.dep_ville || c.dep_adresse) + ' → ' + esc(c.dest_ville || c.dest_adresse) + '</td><td>' + esc(c.chauffeur_id ? nomCh(c.chauffeur_id) : '—') + '</td><td><span class="pastille ' + LIB[c.statut][1] + '">' + LIB[c.statut][0] + '</span></td><td>' + (c.total ? T.argent(c.total) : '') + '</td></tr>';
+    $('#t-hist').innerHTML = '<tr><th>Date</th><th>Client</th><th>Trajet</th><th>Chauffeur</th><th>Statut</th><th>Total</th><th></th></tr>' + l.slice(0, 300).map(function (c) {
+      return '<tr><td>' + T.dateHeure(c.cree_le) + '</td><td>' + esc(c.client_nom || '') + '</td><td>' + esc(c.dep_ville || c.dep_adresse) + ' → ' + esc(c.dest_ville || c.dest_adresse) + '</td><td>' + esc(c.chauffeur_id ? nomCh(c.chauffeur_id) : '—') + '</td><td><span class="pastille ' + LIB[c.statut][1] + '">' + LIB[c.statut][0] + '</span></td><td>' + (c.total ? T.argent(c.total) + (c.corrige_le ? ' <span class="petit doux">(corrigé)</span>' : '') : '') + (c.frais_annulation ? '<span class="petit" style="color: var(--terra-fonce)">Frais d’annulation : ' + T.argent(c.frais_annulation) + '</span>' : '') + '</td><td>' + (c.statut === 'terminee' ? '<button class="btn btn-contour btn-p" data-corr="' + c.id + '">Corriger</button>' : '') + '</td></tr>';
     }).join('');
   }
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('[data-corr]'); if (!b) return;
+    var c = donneesRapport.find(function (x) { return x.id === +b.dataset.corr; }); if (!c) return;
+    modal('<div class="h2">Corriger la course du ' + T.dateHeure(c.cree_le) + '</div><div class="petit doux">' + esc(c.dep_adresse) + ' → ' + esc(c.dest_adresse) + ' · ' + T.km(c.compteur_km) + '</div>' +
+      '<div class="grille2"><div><label for="k-tot">Total payé ($)</label><input id="k-tot" type="number" step="0.01" value="' + (c.total || 0) + '"></div><div><label for="k-pai">Paiement</label><select id="k-pai"><option value="comptant"' + (c.paiement !== 'carte' ? ' selected' : '') + '>Comptant</option><option value="carte"' + (c.paiement === 'carte' ? ' selected' : '') + '>Carte</option></select></div></div>' +
+      '<div><label for="k-note">Raison (note interne)</label><input id="k-note" value="' + esc(c.note_centrale || '') + '" placeholder="Ex. : erreur de GPS, rabais, client régulier"></div><div class="erreur-txt" id="k-err"></div>' +
+      '<div class="grille2"><button class="btn btn-contour" id="k-x">Annuler</button><button class="btn btn-plein" id="k-ok">Enregistrer</button></div>');
+    $('#k-x').onclick = fermer;
+    $('#k-ok').onclick = async function () {
+      var r = await sb.rpc('corriger_course', { p_id: c.id, p_total: Number($('#k-tot').value), p_paiement: $('#k-pai').value, p_note: $('#k-note').value.trim() || null });
+      if (r.error) { $('#k-err').textContent = r.error.message; return; }
+      fermer(); T.toast('Course corrigée'); rapports();
+    };
+  });
   $('#b-csv').onclick = function () {
     var cols = ['id', 'cree_le', 'statut', 'source', 'client_nom', 'client_tel', 'dep_adresse', 'dep_ville', 'dep_prov', 'dest_adresse', 'dest_ville', 'chauffeur', 'compteur_km', 'compteur_attente_s', 'total', 'paiement', 'evaluation'];
     var lignes = [cols.join(';')].concat(donneesRapport.map(function (c) {
@@ -236,6 +254,7 @@
     modal('<div class="h2">' + esc(c.nom) + '</div>' +
       '<div class="grille2"><div><label for="e-nom">Nom</label><input id="e-nom" value="' + esc(c.nom) + '"></div><div><label for="e-voit">N° de voiture</label><input id="e-voit" value="' + esc(c.voiture || '') + '"></div><div><label for="e-veh">Véhicule</label><input id="e-veh" value="' + esc(c.vehicule || '') + '"></div><div><label for="e-pl">Plaque</label><input id="e-pl" value="' + esc(c.plaque || '') + '"></div>' +
       '<div><label for="e-role">Rôle</label><select id="e-role"><option value="chauffeur"' + (c.role === 'chauffeur' ? ' selected' : '') + '>Chauffeur</option><option value="centrale"' + (c.role === 'centrale' ? ' selected' : '') + '>Centrale</option><option value="client">Client</option></select></div>' +
+      '<div><label for="e-places">Places passagers</label><input id="e-places" type="number" min="1" max="12" value="' + (c.places || 4) + '"></div><div><label for="e-adapte">Véhicule adapté (fauteuil)</label><select id="e-adapte"><option value="0"' + (!c.adapte ? ' selected' : '') + '>Non</option><option value="1"' + (c.adapte ? ' selected' : '') + '>Oui</option></select></div>' +
       '<div><label for="e-actif">Accès</label><select id="e-actif"><option value="1"' + (c.actif ? ' selected' : '') + '>Actif</option><option value="0"' + (!c.actif ? ' selected' : '') + '>Suspendu</option></select></div></div>' +
       (conduit(c) ? '<div class="h2" style="font-size: 16px">Documents (date d’expiration)</div><div class="pile" style="gap: 8px">' + DOCS.map(function (t, i) { return '<div><label for="doc' + i + '">' + t + '</label><input id="doc' + i + '" type="date" value="' + (mes[t] || '') + '"></div>'; }).join('') + '</div>' : '') +
       '<div><label for="e-nip">Nouveau NIP (si oublié)</label><input id="e-nip" inputmode="numeric" maxlength="6" placeholder="Laisser vide pour ne pas changer"></div>' +
@@ -244,6 +263,8 @@
     $('#e-ok').onclick = async function () {
       var r = await sb.rpc('centrale_maj_profil', { p_id: c.id, p_role: $('#e-role').value, p_nom: $('#e-nom').value.trim(), p_voiture: $('#e-voit').value.trim() || null, p_vehicule: $('#e-veh').value.trim() || null, p_plaque: $('#e-pl').value.trim() || null, p_actif: $('#e-actif').value === '1' });
       if (r.error) { $('#e-err').textContent = r.error.message; return; }
+      var rv = await sb.rpc('centrale_vehicule', { p_id: c.id, p_places: +$('#e-places').value || 4, p_adapte: $('#e-adapte').value === '1' });
+      if (rv.error) { $('#e-err').textContent = rv.error.message; return; }
       if (conduit(c)) {
         var lignes = DOCS.map(function (t, i) { return { chauffeur_id: c.id, type: t, expire_le: $('#doc' + i).value || null, maj_le: new Date().toISOString() }; });
         var d = await sb.from('documents').upsert(lignes, { onConflict: 'chauffeur_id,type' });
@@ -289,18 +310,18 @@
     $('#tarifs-cartes').innerHTML = ['NB', 'QC'].map(function (p) {
       var t = tarifs[p];
       return '<div class="carte pile col-g"><div class="entre"><div class="h2">' + (p === 'NB' ? 'Nouveau-Brunswick' : 'Québec') + '</div><span class="pastille ' + (p === 'NB' ? 'p-dispo' : 'p-course') + '">' + (p === 'NB' ? 'TVH 15 % incluse' : 'TPS + TVQ incluses') + '</span></div>' +
-        '<div class="grille2"><div><label>Prise en charge ($)</label><input type="number" step="0.01" id="' + p + '-base" value="' + t.base + '"></div><div><label>Par kilomètre ($)</label><input type="number" step="0.01" id="' + p + '-km" value="' + t.km + '"></div><div><label>Par minute d’attente ($)</label><input type="number" step="0.01" id="' + p + '-minute" value="' + t.minute + '"></div><div><label>Majoration de nuit, 23 h à 5 h (%)</label><input type="number" step="1" id="' + p + '-nuit_pct" value="' + t.nuit_pct + '"></div><div><label>Redevance par course ($)</label><input type="number" step="0.01" id="' + p + '-redevance" value="' + t.redevance + '"></div></div>' +
+        '<div class="grille2"><div><label>Prise en charge ($)</label><input type="number" step="0.01" id="' + p + '-base" value="' + t.base + '"></div><div><label>Par kilomètre ($)</label><input type="number" step="0.01" id="' + p + '-km" value="' + t.km + '"></div><div><label>Par minute d’attente ($)</label><input type="number" step="0.01" id="' + p + '-minute" value="' + t.minute + '"></div><div><label>Majoration de nuit, 23 h à 5 h (%)</label><input type="number" step="1" id="' + p + '-nuit_pct" value="' + t.nuit_pct + '"></div><div><label>Redevance par course ($)</label><input type="number" step="0.01" id="' + p + '-redevance" value="' + t.redevance + '"></div><div><label>Prix minimum d’une course ($)</label><input type="number" step="0.01" id="' + p + '-minimum" value="' + (t.minimum || 0) + '"></div></div>' +
         '<div class="petit doux">' + (p === 'QC' ? 'Au Québec, la redevance de 1,05 $ est obligatoire. Tarifs fixés par la Commission des transports du Québec.' : 'Vérifie si ta municipalité fixe des tarifs (arrêtés municipaux).') + '</div>' +
         '<div class="petit doux" id="' + p + '-ex"></div><button class="btn btn-plein" style="align-self: flex-start" data-sauver="' + p + '">Enregistrer</button></div>';
     }).join('');
     ['NB', 'QC'].forEach(function (p) {
-      function ex() { var t = {}; t[p] = { base: +$('#' + p + '-base').value, km: +$('#' + p + '-km').value, minute: +$('#' + p + '-minute').value, nuit_pct: +$('#' + p + '-nuit_pct').value, redevance: +$('#' + p + '-redevance').value }; var x = T.prix(t, p, 10, 120, new Date(2026, 0, 1, 12)); $('#' + p + '-ex').textContent = 'Exemple : 10 km et 2 min d’attente, de jour = ' + T.argent(x.total); }
+      function ex() { var t = {}; t[p] = { base: +$('#' + p + '-base').value, km: +$('#' + p + '-km').value, minute: +$('#' + p + '-minute').value, nuit_pct: +$('#' + p + '-nuit_pct').value, redevance: +$('#' + p + '-redevance').value, minimum: +$('#' + p + '-minimum').value }; var x = T.prix(t, p, 10, 120, new Date(2026, 0, 1, 12)); $('#' + p + '-ex').textContent = 'Exemple : 10 km et 2 min d’attente, de jour = ' + T.argent(x.total); }
       $$('#tarifs-cartes input[id^="' + p + '-"]').forEach(function (i) { i.oninput = ex; }); ex();
     });
     $$('[data-sauver]').forEach(function (b) {
       b.onclick = async function () {
         var p = b.dataset.sauver, v = {};
-        ['base', 'km', 'minute', 'nuit_pct', 'redevance'].forEach(function (k) { v[k] = Number($('#' + p + '-' + k).value) || 0; });
+        ['base', 'km', 'minute', 'nuit_pct', 'redevance', 'minimum'].forEach(function (k) { v[k] = Number($('#' + p + '-' + k).value) || 0; });
         v.maj_le = new Date().toISOString();
         var r = await sb.from('tarifs').update(v).eq('province', p);
         if (r.error) T.toast(r.error.message, true); else { T.toast('Tarifs enregistrés'); tarifs = await T.tarifs(true); }
@@ -337,6 +358,57 @@
       };
     });
   }
+
+  // ---------- Modifier une course ----------
+  function modifierCourse(c) {
+    if (!c) return;
+    var o = Object.assign({}, c.options || {});
+    var local = function (d) { if (!d) return ''; d = new Date(d); return new Date(d - d.getTimezoneOffset() * 60e3).toISOString().slice(0, 16); };
+    modal('<div class="h2">Modifier la course</div>' +
+      '<div class="grille2"><div><label for="m-nom">Client</label><input id="m-nom" value="' + esc(c.client_nom || '') + '"></div><div><label for="m-tel">Téléphone</label><input id="m-tel" value="' + esc(c.client_tel || '') + '"></div></div>' +
+      '<div class="champ-adresse"><label for="m-dep">Départ</label><input id="m-dep" autocomplete="off"><div id="m-dep-s" class="suggestions cache"></div></div>' +
+      '<div class="champ-adresse"><label for="m-dest">Destination</label><input id="m-dest" autocomplete="off"><div id="m-dest-s" class="suggestions cache"></div></div>' +
+      '<div class="grille2"><div><label for="m-pass">Passagers</label><input id="m-pass" type="number" min="1" max="12" value="' + c.passagers + '"></div><div><label for="m-quand">Heure prévue (vide = maintenant)</label><input id="m-quand" type="datetime-local" value="' + local(c.prevue_le) + '"></div></div>' +
+      '<div class="puces" id="m-opts">' + [['adapte', 'Véhicule adapté'], ['siege', 'Siège d’enfant'], ['animal', 'Animal'], ['bagages', 'Bagages']].map(function (x) { return '<button class="puce' + (o[x[0]] ? ' choisie' : '') + '" data-o="' + x[0] + '">' + x[1] + '</button>'; }).join('') + '</div>' +
+      '<div><label for="m-note">Note au chauffeur</label><input id="m-note" value="' + esc(c.note || '') + '"></div>' +
+      '<div><label for="m-int">Note interne (centrale seulement)</label><input id="m-int" value="' + esc(c.note_centrale || '') + '"></div>' +
+      '<div class="erreur-txt" id="m-err"></div><div class="grille2"><button class="btn btn-contour" id="m-x">Fermer</button><button class="btn btn-plein" id="m-ok">Enregistrer</button></div>');
+    var mDep = T.champAdresse($('#m-dep'), $('#m-dep-s'), function () {}), mDest = T.champAdresse($('#m-dest'), $('#m-dest-s'), function () {});
+    var dep0 = { adresse: c.dep_adresse, ville: c.dep_ville, prov: c.dep_prov, lat: c.dep_lat, lng: c.dep_lng }, dest0 = { adresse: c.dest_adresse, ville: c.dest_ville, prov: c.dest_prov, lat: c.dest_lat, lng: c.dest_lng };
+    mDep.definir(dep0); mDest.definir(dest0);
+    $$('#m-opts .puce').forEach(function (b) { b.onclick = function () { o[b.dataset.o] = !o[b.dataset.o]; b.classList.toggle('choisie', o[b.dataset.o]); }; });
+    $('#m-x').onclick = fermer;
+    $('#m-ok').onclick = async function () {
+      var a = mDep.valeur(), b = mDest.valeur();
+      if (!a || !b) { $('#m-err').textContent = 'Choisis le départ et la destination dans la liste.'; return; }
+      var p = { client_nom: $('#m-nom').value.trim(), client_tel: T.tel10($('#m-tel').value) || $('#m-tel').value.trim(), passagers: +$('#m-pass').value || 1, options: o,
+        note: $('#m-note').value.trim(), note_centrale: $('#m-int').value.trim(), prevue_le: $('#m-quand').value ? new Date($('#m-quand').value).toISOString() : '',
+        dep_adresse: a.adresse, dep_ville: a.ville, dep_prov: a.prov, dep_lat: a.lat, dep_lng: a.lng, dest_adresse: b.adresse, dest_ville: b.ville, dest_prov: b.prov, dest_lat: b.lat, dest_lng: b.lng };
+      var r = await sb.rpc('modifier_course', { p_id: c.id, p: p });
+      if (r.error) { $('#m-err').textContent = r.error.message; return; }
+      fermer(); T.toast('Course modifiée'); charger();
+    };
+  }
+
+  // ---------- Réglages ----------
+  var modeOuv = '24h';
+  $$('#r-mode button').forEach(function (b) { b.onclick = function () { modeOuv = b.dataset.m; $$('#r-mode button').forEach(function (x) { x.classList.toggle('choisi', x === b); }); $('#r-heures').classList.toggle('cache', modeOuv !== 'horaire'); }; });
+  async function reglages() {
+    var P = await T.parametres(true), e = P.entreprise || {}, o = P.ouverture || {}, z = P.zone || {}, rp = P.repartition || {};
+    $('#r-nom').value = e.nom || ''; $('#r-tel').value = e.telephone || ''; $('#r-adr').value = e.adresse || ''; $('#r-cour').value = e.courriel || ''; $('#r-tps').value = e.tps || ''; $('#r-tvq').value = e.tvq || '';
+    modeOuv = o.mode || '24h'; $$('#r-mode button').forEach(function (x) { x.classList.toggle('choisi', x.dataset.m === modeOuv); }); $('#r-heures').classList.toggle('cache', modeOuv !== 'horaire');
+    $('#r-deb').value = o.debut || '06:00'; $('#r-fin').value = o.fin || '02:00'; $('#r-msg').value = o.message || '';
+    $('#r-delai').value = rp.delai_offre_s || 20; $('#r-resa').value = rp.reservation_min || 15; $('#r-frais').value = rp.frais_annulation || 0; $('#r-gratuit').value = rp.annulation_gratuite_min || 2;
+    $('#r-rayon').value = z.rayon_km || 160;
+  }
+  async function sauver(cle, v) { try { await T.sauverParametre(cle, v); T.toast('Réglages enregistrés'); } catch (x) { T.toast(T.erreurMsg(x), true); } }
+  $('#r-s1').onclick = function () { sauver('entreprise', { nom: $('#r-nom').value.trim() || 'Taxi Restigouche', telephone: T.tel10($('#r-tel').value) || '', adresse: $('#r-adr').value.trim(), courriel: $('#r-cour').value.trim(), tps: $('#r-tps').value.trim(), tvq: $('#r-tvq').value.trim() }); };
+  $('#r-s2').onclick = function () { sauver('ouverture', { mode: modeOuv, debut: $('#r-deb').value || '06:00', fin: $('#r-fin').value || '02:00', message: $('#r-msg').value.trim() || 'Nous sommes fermés pour le moment. Vous pouvez réserver pour plus tard.' }); };
+  $('#r-s3').onclick = async function () {
+    var P = await T.parametres(true), z = Object.assign({}, P.zone || {}, { rayon_km: Math.max(5, +$('#r-rayon').value || 160) });
+    await sauver('repartition', { delai_offre_s: Math.min(120, Math.max(10, +$('#r-delai').value || 20)), reservation_min: Math.max(5, +$('#r-resa').value || 15), frais_annulation: Math.max(0, +$('#r-frais').value || 0), annulation_gratuite_min: Math.max(0, +$('#r-gratuit').value || 0) });
+    await sauver('zone', z);
+  };
 
   // ---------- Messages ----------
   var MODELES = ['Travaux sur le pont J.-C.-Van Horne, prévoyez 5 minutes de plus.', 'Tempête : prudence sur les routes, signalez-moi les routes fermées.', 'Besoin d’un chauffeur vers Bathurst. Qui est disponible ?'];

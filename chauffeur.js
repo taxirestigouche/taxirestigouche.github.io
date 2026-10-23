@@ -5,6 +5,8 @@
   var estCentrale = moi && moi.role === 'centrale';
   if (!moi) return;
   var tarifs = await T.tarifs();
+  var PARAMS = await T.parametres();
+  var DELAI = Number((PARAMS.repartition || {}).delai_offre_s || 20);
   $('#ent-nom').textContent = moi.nom + (moi.voiture ? ' · ' + moi.voiture : '');
   if (estCentrale) {
     var lien = document.createElement('a'); lien.href = 'centrale.html'; lien.className = 'btn btn-plein btn-large'; lien.textContent = 'Retour à la centrale';
@@ -168,8 +170,8 @@
   }
   function compteARebours() {
     if (!offre) return;
-    var reste = Math.max(0, 20 - Math.floor((Date.now() - new Date(offre.offerte_le).getTime()) / 1000));
-    $('#o-sec').textContent = reste + ' s'; $('#o-barre').style.width = (reste / 20 * 100) + '%';
+    var reste = Math.max(0, DELAI - Math.floor((Date.now() - new Date(offre.offerte_le).getTime()) / 1000));
+    $('#o-sec').textContent = reste + ' s'; $('#o-barre').style.width = (reste / DELAI * 100) + '%';
     if (reste <= 0) { offre = null; noteAttente = 'Pas de réponse : la course a été envoyée au chauffeur suivant.'; sb.rpc('verifier_offres').then(rafraichir); }
   }
   setInterval(compteARebours, 1000);
