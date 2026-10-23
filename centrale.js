@@ -5,6 +5,7 @@
   if (!moi) return;
   $('#moi-nom').textContent = moi.nom;
   $('#deco').onclick = function () { T.deconnexion(); };
+  $('#mode-ch').onclick = function () { location.href = 'chauffeur.html'; };
   var tarifs = await T.tarifs();
 
   var vue = 'repartition';
@@ -20,6 +21,8 @@
   function fermer() { $('#modal').classList.add('cache'); }
   $('#modal').onclick = function (e) { if (e.target.id === 'modal') fermer(); };
 
+  // Un compte centrale qui conduit (n° de voiture inscrit, ou en service) compte aussi comme chauffeur
+  function conduit(c) { return c.role === 'chauffeur' || (c.role === 'centrale' && (!!c.voiture || c.statut !== 'hors')); }
   var LIB = { reservee: ['Réservée', 'p-dispo'], attente: ['En attente', 'p-course'], offerte: ['Offerte', 'p-pause'], acceptee: ['Acceptée', 'p-dispo'], arrivee: ['À la porte', 'p-dispo'], en_course: ['En course', 'p-course'], terminee: ['Terminée', 'p-hors'], annulee: ['Annulée', 'p-hors'] };
   var COUL = { dispo: '#5f8570', course: '#a85743', pause: '#a8741f', hors: '#b5a89c' };
   var STL = { dispo: ['Disponible', 'p-dispo'], course: ['En course', 'p-course'], pause: ['En pause', 'p-pause'], hors: ['Hors service', 'p-hors'] };
@@ -34,8 +37,8 @@
   var chauffeursL = [], coursesL = [], comptesL = [];
 
   async function charger() {
-    var a = await sb.from('profils').select('*').eq('role', 'chauffeur').order('nom');
-    chauffeursL = a.data || [];
+    var a = await sb.from('profils').select('*').in('role', ['chauffeur', 'centrale']).order('nom');
+    chauffeursL = (a.data || []).filter(conduit);
     var b = await sb.from('courses').select('*').in('statut', ['reservee', 'attente', 'offerte', 'acceptee', 'arrivee', 'en_course']).order('cree_le', { ascending: false });
     coursesL = b.data || [];
     dessiner();
@@ -186,7 +189,7 @@
     $('#villes').innerHTML = vs.length ? vs.map(function (v) { return '<div style="margin-bottom: 10px"><div class="entre petit"><span class="gras">' + esc(v) + '</span><span class="doux">' + parV[v] + '</span></div><div style="height: 8px; border-radius: 4px; background: var(--teinte)"><div style="height: 8px; border-radius: 4px; background: var(--sauge); width: ' + (parV[v] / vmx * 100) + '%"></div></div></div>'; }).join('') : '<div class="vide">Aucune course</div>';
     var pc = {};
     term.forEach(function (c) { var k = c.chauffeur_id || 'x'; pc[k] = pc[k] || { n: 0, t: 0, cash: 0, km: 0, ev: [] }; pc[k].n++; pc[k].t += Number(c.total || 0); if (c.paiement !== 'carte') pc[k].cash += Number(c.total || 0); pc[k].km += Number(c.compteur_km || 0); if (c.evaluation) pc[k].ev.push(c.evaluation); });
-    if (!chauffeursL.length) { var a = await sb.from('profils').select('*').eq('role', 'chauffeur'); chauffeursL = a.data || []; }
+    if (!chauffeursL.length) { var a = await sb.from('profils').select('*').in('role', ['chauffeur', 'centrale']); chauffeursL = (a.data || []).filter(conduit); }
     $('#t-chauffeurs').innerHTML = '<tr><th>Chauffeur</th><th>Courses</th><th>Total compteur</th><th>Comptant à remettre</th><th>Km facturés</th><th>Note moyenne</th></tr>' + Object.keys(pc).map(function (k) {
       var x = pc[k]; return '<tr><td class="gras">' + esc(nomCh(k)) + '</td><td>' + x.n + '</td><td>' + T.argent(x.t) + '</td><td>' + T.argent(x.cash) + '</td><td>' + T.km(x.km) + '</td><td>' + (x.ev.length ? (x.ev.reduce(function (s, v) { return s + v; }, 0) / x.ev.length).toFixed(1).replace('.', ',') + ' ★' : '—') + '</td></tr>';
     }).join('');
@@ -217,7 +220,7 @@
   };
   async function chauffeurs() {
     var a = await sb.from('profils').select('*').in('role', ['chauffeur', 'centrale']).order('role').order('nom');
-    var l = a.data || []; chauffeursL = l.filter(function (c) { return c.role === 'chauffeur'; });
+    var l = a.data || []; chauffeursL = l.filter(conduit);
     var d = await sb.from('documents').select('*');
     var docs = d.data || [];
     $('#t-ch').innerHTML = '<tr><th>Voiture</th><th>Nom</th><th>Cellulaire</th><th>Véhicule</th><th>Documents</th><th>Statut</th><th></th></tr>' + l.map(function (c) {
@@ -234,14 +237,14 @@
       '<div class="grille2"><div><label for="e-nom">Nom</label><input id="e-nom" value="' + esc(c.nom) + '"></div><div><label for="e-voit">N° de voiture</label><input id="e-voit" value="' + esc(c.voiture || '') + '"></div><div><label for="e-veh">Véhicule</label><input id="e-veh" value="' + esc(c.vehicule || '') + '"></div><div><label for="e-pl">Plaque</label><input id="e-pl" value="' + esc(c.plaque || '') + '"></div>' +
       '<div><label for="e-role">Rôle</label><select id="e-role"><option value="chauffeur"' + (c.role === 'chauffeur' ? ' selected' : '') + '>Chauffeur</option><option value="centrale"' + (c.role === 'centrale' ? ' selected' : '') + '>Centrale</option><option value="client">Client</option></select></div>' +
       '<div><label for="e-actif">Accès</label><select id="e-actif"><option value="1"' + (c.actif ? ' selected' : '') + '>Actif</option><option value="0"' + (!c.actif ? ' selected' : '') + '>Suspendu</option></select></div></div>' +
-      (c.role === 'chauffeur' ? '<div class="h2" style="font-size: 16px">Documents (date d’expiration)</div><div class="pile" style="gap: 8px">' + DOCS.map(function (t, i) { return '<div><label for="doc' + i + '">' + t + '</label><input id="doc' + i + '" type="date" value="' + (mes[t] || '') + '"></div>'; }).join('') + '</div>' : '') +
+      (conduit(c) ? '<div class="h2" style="font-size: 16px">Documents (date d’expiration)</div><div class="pile" style="gap: 8px">' + DOCS.map(function (t, i) { return '<div><label for="doc' + i + '">' + t + '</label><input id="doc' + i + '" type="date" value="' + (mes[t] || '') + '"></div>'; }).join('') + '</div>' : '') +
       '<div><label for="e-nip">Nouveau NIP (si oublié)</label><input id="e-nip" inputmode="numeric" maxlength="6" placeholder="Laisser vide pour ne pas changer"></div>' +
       '<div class="erreur-txt" id="e-err"></div><div class="grille2"><button class="btn btn-contour" id="e-ann">Annuler</button><button class="btn btn-plein" id="e-ok">Enregistrer</button></div>');
     $('#e-ann').onclick = fermer;
     $('#e-ok').onclick = async function () {
       var r = await sb.rpc('centrale_maj_profil', { p_id: c.id, p_role: $('#e-role').value, p_nom: $('#e-nom').value.trim(), p_voiture: $('#e-voit').value.trim() || null, p_vehicule: $('#e-veh').value.trim() || null, p_plaque: $('#e-pl').value.trim() || null, p_actif: $('#e-actif').value === '1' });
       if (r.error) { $('#e-err').textContent = r.error.message; return; }
-      if (c.role === 'chauffeur') {
+      if (conduit(c)) {
         var lignes = DOCS.map(function (t, i) { return { chauffeur_id: c.id, type: t, expire_le: $('#doc' + i).value || null, maj_le: new Date().toISOString() }; });
         var d = await sb.from('documents').upsert(lignes, { onConflict: 'chauffeur_id,type' });
         if (d.error) { $('#e-err').textContent = d.error.message; return; }
@@ -347,7 +350,7 @@
   };
   var dejaVus = {};
   async function messages(marquer) {
-    if (!chauffeursL.length) { var a = await sb.from('profils').select('*').eq('role', 'chauffeur'); chauffeursL = a.data || []; }
+    if (!chauffeursL.length) { var a = await sb.from('profils').select('*').in('role', ['chauffeur', 'centrale']); chauffeursL = (a.data || []).filter(conduit); }
     var sel = $('#m-a'), v = sel.value;
     sel.innerHTML = '<option value="">Tous les chauffeurs</option>' + chauffeursL.filter(function (c) { return c.actif; }).map(function (c) { return '<option value="' + c.id + '">' + esc((c.voiture ? c.voiture + ' · ' : '') + c.nom) + '</option>'; }).join('');
     sel.value = v;

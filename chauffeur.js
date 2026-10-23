@@ -1,10 +1,17 @@
 /* Taxi Restigouche — appli chauffeur */
 (async function () {
   var T = Taxi, $ = T.$, $$ = T.$$, sb = T.sb, esc = T.esc;
-  var moi = await T.exigerRole(['chauffeur']);
+  var moi = await T.exigerRole(['chauffeur', 'centrale']);
+  var estCentrale = moi && moi.role === 'centrale';
   if (!moi) return;
   var tarifs = await T.tarifs();
   $('#ent-nom').textContent = moi.nom + (moi.voiture ? ' · ' + moi.voiture : '');
+  if (estCentrale) {
+    var lien = document.createElement('a'); lien.href = 'centrale.html'; lien.className = 'btn btn-plein btn-large'; lien.textContent = 'Retour à la centrale';
+    $('#vue-dossier .contenu').insertBefore(lien, $('#b-deco'));
+    $('#b-msg').parentNode.classList.add('cache'); $('#rapides').classList.add('cache');
+    $('#ent-quart').insertAdjacentHTML('afterend', '<a href="centrale.html" class="petit" style="color: #e7f0ea; font-weight: 700">← Centrale</a>');
+  }
   $('#lbl-minute').textContent = T.argent(tarifs.NB.minute) + ' / minute';
 
   // ---------- Navigation ----------
@@ -204,7 +211,7 @@
     $('#k-choix').classList.toggle('cache', !(c.statut === 'arrivee' && cpt.mode === 'off'));
     $('#k-attente').classList.toggle('cache', !(c.statut === 'arrivee' && cpt.mode === 'attente'));
     $('#k-ride').classList.toggle('cache', c.statut !== 'en_course');
-    $('#b-absent').classList.toggle('cache', c.statut !== 'arrivee');
+    $('#b-absent').classList.toggle('cache', c.statut !== 'arrivee' || estCentrale);
     afficherCpt(); majCartes();
   }
   async function etape(e) {
