@@ -31,7 +31,7 @@
     var bouge = !dernierEnvoiPos || T.distance(dernierEnvoiPos.lat, dernierEnvoiPos.lng, pos.lat, pos.lng) > 0.03;
     if (moi.statut !== 'hors' && (Date.now() - dernierEnvoi > 15000 || (bouge && Date.now() - dernierEnvoi > 5000))) {
       dernierEnvoi = Date.now(); dernierEnvoiPos = pos;
-      sb.rpc('chauffeur_position', { p_lat: pos.lat, p_lng: pos.lng });
+      sb.rpc('chauffeur_position', { p_lat: pos.lat, p_lng: pos.lng }).then(function () {});
     }
     majCartes();
   }
@@ -99,7 +99,7 @@
     b.style.background = cpt.mode === 'attente' ? 'var(--sauge)' : 'var(--ambre-pale)';
     b.style.color = cpt.mode === 'attente' ? '#fffbf8' : 'var(--texte)';
   }
-  setInterval(function () { if (cpt && course && cpt.mode !== 'off') sb.rpc('course_etape', { p_id: course.id, p_etape: 'compteur', p_km: Math.round(cpt.km * 100) / 100, p_attente_s: cpt.attenteS }); }, 30000);
+  setInterval(function () { if (cpt && course && cpt.mode !== 'off') sb.rpc('course_etape', { p_id: course.id, p_etape: 'compteur', p_km: Math.round(cpt.km * 100) / 100, p_attente_s: cpt.attenteS }).then(function () {}); }, 30000);
 
   // ---------- État principal ----------
   var offre = null, idOffreVue = null;
@@ -137,7 +137,7 @@
     var r = await sb.rpc('chauffeur_statut', { p_statut: s });
     if (r.error) { T.toast(r.error.message, true); return; }
     if (s === 'hors' && verrou) { try { verrou.release(); } catch (e) {} verrou = null; }
-    if (s !== 'hors') { demarrerGps(); if (pos) sb.rpc('chauffeur_position', { p_lat: pos.lat, p_lng: pos.lng }); T.demanderAvis(); }
+    if (s !== 'hors') { demarrerGps(); if (pos) sb.rpc('chauffeur_position', { p_lat: pos.lat, p_lng: pos.lng }).then(function () {}); T.demanderAvis(); }
     noteAttente = '';
     rafraichir();
   }
@@ -343,6 +343,6 @@
     .on('postgres_changes', { event: '*', schema: 'public', table: 'courses', filter: 'chauffeur_id=eq.' + moi.id }, function () { rafraichir(); })
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, function () { messages(vue === 'messages'); })
     .subscribe();
-  setInterval(function () { if (moi.statut !== 'hors') { sb.rpc('verifier_offres'); if (!offre) rafraichir(); } }, 8000);
+  setInterval(function () { if (moi.statut !== 'hors') { sb.rpc('verifier_offres').then(function () { if (!offre) rafraichir(); }); } }, 8000);
   setInterval(function () { messages(vue === 'messages'); }, 30000);
 })();

@@ -344,6 +344,6 @@
   await suivre();
   if (!courseActive) majLibres();
   sb.channel('client-' + moi.id).on('postgres_changes', { event: '*', schema: 'public', table: 'courses', filter: 'client_id=eq.' + moi.id }, function () { suivre(); }).subscribe();
-  setInterval(function () { if (!document.hidden) { sb.rpc('verifier_offres'); suivre(); if (!courseActive && vue === 'commander') majLibres(); } }, 6000);
+  setInterval(function () { if (!document.hidden) { sb.rpc('verifier_offres').then(function () {}); suivre(); if (!courseActive && vue === 'commander') majLibres(); } }, 6000);
   document.addEventListener('visibilitychange', function () { if (!document.hidden) suivre(); });
 })();
