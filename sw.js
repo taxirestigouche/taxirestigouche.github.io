@@ -1,7 +1,7 @@
 /* Taxi Restigouche — appli (service worker).
    Toujours la version la plus récente quand il y a Internet ; les pages déjà ouvertes restent disponibles sans réseau.
    Supabase, cartes et adresses ne passent jamais par le cache. */
-var VERSION = 'taxi-v2';
+var VERSION = 'taxi-v3';
 var DE_BASE = ['./', 'index.html', 'client.html', 'chauffeur.html', 'centrale.html', 'hors-ligne.html', 'commun.css', 'commun.js', 'client.js', 'chauffeur.js', 'centrale.js', 'icones/icone-192.png', 'icones/icone-512.png'];
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(VERSION).then(function (c) { return c.addAll(DE_BASE); }).then(function () { return self.skipWaiting(); }));

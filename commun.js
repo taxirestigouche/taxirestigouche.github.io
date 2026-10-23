@@ -134,17 +134,34 @@
     var cle = q.toLowerCase();
     if (cacheRech[cle]) return cacheRech[cle];
     var res = [];
+    function avecDelai(url) {
+      var ctl = new AbortController(); var t = setTimeout(function () { ctl.abort(); }, 6000);
+      return fetch(url, { signal: ctl.signal }).then(function (r) { clearTimeout(t); return r.json(); });
+    }
+    function dansRegion(lat, lng) { return lng >= BBOX[0] && lng <= BBOX[2] && lat >= BBOX[1] && lat <= BBOX[3]; }
+    var urlP = 'https://photon.komoot.io/api/?limit=7&lang=fr&q=' + encodeURIComponent(q) + '&bbox=' + BBOX.join(',') + (pres ? '&lat=' + pres.lat + '&lon=' + pres.lng : '');
+    var urlN = 'https://geogratis.gc.ca/services/geolocation/fr/locate?q=' + encodeURIComponent(q);
+    var deux = await Promise.allSettled([avecDelai(urlN), avecDelai(urlP)]);
+    // 1) Adresses civiques du gouvernement du Canada (Ressources naturelles Canada)
+    if (deux[0].status === 'fulfilled' && Array.isArray(deux[0].value)) {
+      deux[0].value.forEach(function (r) {
+        if (!r.geometry || !r.geometry.coordinates || !/Street|Intersection/.test(r.type || '')) return;
+        var c = r.geometry.coordinates;
+        if (!dansRegion(c[1], c[0])) return;
+        var morceaux = String(r.title || '').split(',').map(function (x) { return x.trim(); });
+        var prov = /qu[ée]bec/i.test(morceaux[morceaux.length - 1] || '') ? 'QC' : 'NB';
+        res.push({ adresse: morceaux[0], ville: morceaux[1] || villeProche(c[1], c[0])[0], prov: prov, lat: c[1], lng: c[0] });
+      });
+    }
+    // 2) Lieux et commerces (OpenStreetMap)
     try {
-      var url = 'https://photon.komoot.io/api/?limit=7&lang=fr&q=' + encodeURIComponent(q) + '&bbox=' + BBOX.join(',');
-      if (pres) url += '&lat=' + pres.lat + '&lon=' + pres.lng;
-      var rep = await fetch(url);
-      var j = await rep.json();
+      var j = deux[1].status === 'fulfilled' ? deux[1].value : {};
       (j.features || []).forEach(function (f) {
         var p = f.properties || {}, c = f.geometry.coordinates;
         if (p.country && !/canada/i.test(p.country)) return;
         var rue = [p.housenumber, p.street].filter(Boolean).join(' ');
         var titre = p.name && p.name !== p.street ? (rue ? p.name + ', ' + rue : p.name) : (rue || p.name || '');
-        var ville = p.city || p.town || p.village || p.locality || p.district || p.county || villeProche(c[1], c[0])[0];
+        var ville = String(p.city || p.town || p.village || p.locality || p.district || p.county || villeProche(c[1], c[0])[0]).replace(/^Communaut\u00e9 r\u00e9gionale de /i, '').replace(/^Communauté régionale de /i, '');
         if (!titre) titre = ville;
         res.push({ adresse: titre, ville: ville, prov: provinceDe(p.state, c[1], c[0]), lat: c[1], lng: c[0] });
       });
