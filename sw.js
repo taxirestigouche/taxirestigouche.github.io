@@ -1,7 +1,7 @@
 /* Taxi Restigouche — appli (service worker).
    Toujours la version la plus récente quand il y a Internet ; les pages déjà ouvertes restent disponibles sans réseau.
    Supabase, cartes et adresses ne passent jamais par le cache. */
-var VERSION = 'taxi-v4';
+var VERSION = 'taxi-v5';
 var DE_BASE = ['./', 'index.html', 'client.html', 'chauffeur.html', 'centrale.html', 'hors-ligne.html', 'commun.css', 'commun.js', 'client.js', 'chauffeur.js', 'centrale.js', 'icones/icone-192.png', 'icones/icone-512.png'];
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(VERSION).then(function (c) { return c.addAll(DE_BASE); }).then(function () { return self.skipWaiting(); }));
@@ -18,7 +18,8 @@ self.addEventListener('fetch', function (e) {
   if (req.method !== 'GET') return;
   var url = new URL(req.url);
   if (!cachable(url)) return;
-  e.respondWith(fetch(req).then(function (rep) {
+  var frais = url.origin === self.location.origin ? fetch(req, { cache: 'no-cache' }) : fetch(req);
+  e.respondWith(frais.then(function (rep) {
     if (rep && (rep.ok || rep.type === 'opaque')) { var c = rep.clone(); caches.open(VERSION).then(function (k) { k.put(req, c); }); }
     return rep;
   }).catch(function () {
