@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Taxi Restigouche · Chauffeur</title>
+<meta name="theme-color" content="#2c221e">
+<link rel="manifest" href="manifest-chauffeur.webmanifest">
+<link rel="apple-touch-icon" href="icones/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="commun.css">
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="commun.js"></script>
+<style>
+  body { background: var(--nuit); color: #fffbf8; }
+  .contenu { padding-top: calc(16px + env(safe-area-inset-top)); }
+  .bloc { background: var(--nuit-2); border: 1px solid var(--nuit-3); border-radius: 18px; padding: 16px; }
+  .doux, .sombre .doux { color: var(--nuit-doux); }
+  label { color: var(--nuit-doux); }
+  input, textarea, select { background: var(--nuit-2); border-color: var(--nuit-3); color: #fffbf8; }
+  .btn-contour { background: transparent; color: #fffbf8; border: 1px solid var(--nuit-doux); }
+  .btn-gris { background: var(--nuit-3); color: #fffbf8; }
+  #carteC { height: 240px; border-radius: 20px; overflow: hidden; }
+  .offre { background: var(--carte); color: var(--texte); border-radius: 22px; padding: 18px; }
+  .barre { height: 6px; border-radius: 3px; background: var(--teinte); overflow: hidden; }
+  .barre div { height: 6px; background: var(--terra); transition: width 1s linear; }
+  .bulle { max-width: 82%; padding: 10px 14px; border-radius: 16px; font-size: 14px; line-height: 1.45; }
+  .bulle.moi { align-self: flex-end; background: var(--sauge); border-bottom-right-radius: 4px; }
+  .bulle.eux { align-self: flex-start; background: var(--nuit-2); border-bottom-left-radius: 4px; }
+  .bulle.tous { align-self: stretch; max-width: none; background: var(--ambre-pale); color: var(--texte); }
+  .modal { position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 2000; display: flex; align-items: flex-end; justify-content: center; }
+  .modal .boite { background: var(--nuit-2); width: 100%; max-width: 560px; border-radius: 24px 24px 0 0; padding: 20px; }
+</style>
+</head>
+<body class="sombre">
+
+<section id="vue-courses"><div class="contenu pile">
+  <div class="entre">
+    <div><div class="titre" style="font-size: 20px" id="ent-nom"></div><div class="petit doux" id="ent-quart"></div></div>
+    <div id="pastille" class="pastille p-hors"><span class="point" style="background: currentColor"></span><span id="pastille-t">Hors service</span></div>
+  </div>
+  <div id="gps-err" class="bloc petit cache" style="background: var(--ambre-pale); color: var(--texte)">Active la localisation pour cette page : sans GPS, la centrale ne peut pas t'envoyer de courses.</div>
+
+  <!-- Hors service -->
+  <div id="s-hors" class="pile cache" style="margin-top: 40px">
+    <h1 style="font-size: 32px">Prêt à rouler ?</h1>
+    <p class="doux" style="margin: 0; line-height: 1.55">Quand tu commences ton quart, ta position GPS est partagée en direct avec la centrale et tu reçois les courses quand tu es le chauffeur disponible le plus proche.</p>
+    <button id="b-in" class="btn btn-plein btn-large" style="min-height: 64px; font-size: 18px">Punch in · commencer mon quart</button>
+  </div>
+
+  <!-- Disponible / pause -->
+  <div id="s-attente" class="pile cache">
+    <div id="carteC" class="carteMap"></div>
+    <div class="bloc pile" style="text-align: center; align-items: center">
+      <div class="titre" style="font-size: 22px" id="att-titre"></div>
+      <div class="petit doux" id="att-txt" style="line-height: 1.5"></div>
+    </div>
+    <div class="grille2">
+      <button id="b-pause" class="btn btn-contour"></button>
+      <button id="b-out" class="btn btn-gris">Punch out</button>
+    </div>
+  </div>
+
+  <!-- Offre -->
+  <div id="s-offre" class="pile cache">
+    <div class="offre pile">
+      <div class="entre"><span class="petit gras" style="color: var(--terra-fonce); text-transform: uppercase; letter-spacing: 1px">Nouvelle course</span><span class="pastille" style="background: var(--terra); color: #fffbf8" id="o-sec"></span></div>
+      <div class="barre"><div id="o-barre"></div></div>
+      <div class="titre" style="font-size: 28px" id="o-dist"></div>
+      <div class="pile" style="gap: 8px; font-size: 15px">
+        <div class="ligne" style="align-items: flex-start"><span class="point" style="background: var(--sauge); margin-top: 7px"></span><span><b>Prise :</b> <span id="o-dep"></span></span></div>
+        <div class="ligne" style="align-items: flex-start"><span class="point" style="background: var(--terra); border-radius: 2px; margin-top: 7px"></span><span><b>Dépôt :</b> <span id="o-dest"></span></span></div>
+        <div class="petit doux" id="o-info" style="color: var(--doux)"></div>
+      </div>
+    </div>
+    <button id="b-accepter" class="btn btn-plein btn-large" style="min-height: 68px; font-size: 20px">Accepter</button>
+    <button id="b-refuser" class="btn btn-contour btn-large">Refuser (passe au suivant)</button>
+  </div>
+
+  <!-- Course -->
+  <div id="s-course" class="pile cache">
+    <div class="bloc entre" style="background: var(--sauge); border: 0">
+      <div><div class="petit gras" id="c-etape"></div><div class="titre" style="font-size: 18px" id="c-cible"></div></div>
+      <a id="c-nav" class="btn" style="background: #fffbf8; color: var(--texte); min-height: 46px" target="_blank" rel="noopener">GPS</a>
+    </div>
+    <div id="carteK" class="carteMap" style="height: 210px; border-radius: 20px; overflow: hidden"></div>
+    <div class="bloc pile" style="gap: 6px">
+      <div class="entre"><span class="petit gras doux" style="text-transform: uppercase; letter-spacing: 1px">Compteur virtuel</span><span class="pastille" id="m-mode"></span></div>
+      <div class="entre"><span class="titre" style="font-size: 34px" id="m-total">0,00 $</span><span class="petit doux" id="m-info"></span></div>
+    </div>
+    <div class="bloc petit pile" style="gap: 4px">
+      <div><b id="c-client"></b> <a id="c-tel" class="cache" style="color: #e7f0ea; font-weight: 700"></a></div>
+      <div class="doux" id="c-opts"></div>
+    </div>
+    <div id="k-route" class="cache"><button id="b-arrive" class="btn btn-plein btn-large" style="min-height: 60px; font-size: 18px">Je suis arrivé</button></div>
+    <div id="k-choix" class="pile cache">
+      <div class="petit gras doux">Tu es chez le client. Choisis le mode du compteur :</div>
+      <div class="grille2">
+        <button id="b-attente" class="btn" style="min-height: 84px; background: var(--ambre-pale); color: var(--texte); flex-direction: column; gap: 2px"><span style="font-size: 18px">Attente</span><span class="petit" id="lbl-minute" style="font-weight: 600"></span></button>
+        <button id="b-depart" class="btn btn-plein" style="min-height: 84px; flex-direction: column; gap: 2px"><span style="font-size: 18px">Départ</span><span class="petit" style="font-weight: 600">Compteur régulier</span></button>
+      </div>
+    </div>
+    <div id="k-attente" class="pile cache">
+      <div class="petit gras doux">Le compteur d'attente tourne. Quand le client est à bord :</div>
+      <button id="b-depart2" class="btn btn-plein btn-large" style="min-height: 64px; font-size: 18px">Départ · compteur régulier</button>
+    </div>
+    <div id="k-ride" class="grille2 cache">
+      <button id="b-arret" class="btn" style="min-height: 60px"></button>
+      <button id="b-fin" class="btn btn-terra" style="min-height: 60px">Terminer la course</button>
+    </div>
+    <button id="b-absent" class="btn btn-lien cache" style="color: var(--nuit-doux)">Client absent : avertir la centrale</button>
+  </div>
+</div></section>
+
+<section id="vue-journee" class="cache"><div class="contenu pile">
+  <h1 style="font-size: 30px">Ma journée</h1>
+  <div class="grille2" id="j-stats"></div>
+  <div class="bloc pile" style="gap: 0" id="j-quart"></div>
+  <div class="petit gras doux" style="text-transform: uppercase; letter-spacing: 1px">Courses d'aujourd'hui</div>
+  <div class="bloc" style="padding: 4px 16px" id="j-courses"></div>
+</div></section>
+
+<section id="vue-messages" class="cache"><div class="contenu pile" style="padding-bottom: 150px">
+  <div class="entre"><h1 style="font-size: 28px">Centrale</h1></div>
+  <div id="fil" class="pile" style="gap: 10px"></div>
+  <div class="puces" id="rapides"></div>
+  <div class="ligne"><input id="msg" placeholder="Écrire à la centrale"><button id="b-msg" class="btn btn-plein">Envoyer</button></div>
+  <button id="b-sos" class="btn btn-rouge btn-large" style="min-height: 64px; font-size: 18px">Urgence · alerter la centrale</button>
+</div></section>
+
+<section id="vue-dossier" class="cache"><div class="contenu pile">
+  <h1 style="font-size: 28px">Mon dossier</h1>
+  <div class="bloc" id="d-profil"></div>
+  <div id="d-docs" class="pile" style="gap: 10px"></div>
+  <div class="bloc pile">
+    <div><label for="d-nip">Nouveau NIP (4 à 6 chiffres)</label><input id="d-nip" type="password" inputmode="numeric" maxlength="6" style="letter-spacing: 6px; font-weight: 800"></div>
+    <button id="b-nip" class="btn btn-contour">Changer mon NIP</button>
+  </div>
+  <button id="b-deco" class="btn btn-contour">Me déconnecter</button>
+</div></section>
+
+<div id="modal" class="modal cache"><div class="boite pile" id="modal-boite"></div></div>
+
+<nav class="navbas">
+  <button data-v="courses" class="actif"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 17h14l-1.5-6h-11z"></path><circle cx="8" cy="18" r="1.5"></circle><circle cx="16" cy="18" r="1.5"></circle><path d="M9 11l1-4h4l1 4"></path></svg><span>Courses</span></button>
+  <button data-v="journee"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg><span>Ma journée</span></button>
+  <button data-v="messages"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"></path></svg><span id="n-msg">Messages</span></button>
+  <button data-v="dossier"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"></path><path d="M14 3v5h5"></path></svg><span>Dossier</span></button>
+</nav>
+
+<script src="chauffeur.js"></script>
+</body>
+</html>

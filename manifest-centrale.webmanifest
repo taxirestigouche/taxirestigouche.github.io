@@ -1,0 +1,37 @@
+{
+  "name": "Taxi Restigouche · Centrale",
+  "short_name": "Centrale",
+  "description": "Centrale de répartition de Taxi Restigouche.",
+  "lang": "fr",
+  "id": "./centrale.html",
+  "start_url": "centrale.html?source=appli",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f7f1ea",
+  "theme_color": "#5f8570",
+  "categories": [
+    "travel",
+    "navigation"
+  ],
+  "icons": [
+    {
+      "src": "icones/icone-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icones/icone-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icones/icone-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

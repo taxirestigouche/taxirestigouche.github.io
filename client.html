@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Taxi Restigouche</title>
+<meta name="theme-color" content="#5f8570">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icones/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="commun.css">
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="commun.js"></script>
+<style>
+  #vue-commander { position: fixed; inset: 0 0 60px 0; }
+  #carte { position: absolute; left: 0; right: 0; top: 0; height: 42vh; }
+  .feuille { position: absolute; left: 0; right: 0; bottom: 0; top: calc(42vh - 24px); background: var(--carte); border-radius: 26px 26px 0 0; box-shadow: 0 -8px 30px rgba(44,34,30,.14); overflow-y: auto; z-index: 500; }
+  .feuille .in { max-width: 560px; margin: 0 auto; padding: 10px 18px 24px; display: flex; flex-direction: column; gap: 14px; }
+  .poignee { align-self: center; width: 40px; height: 5px; border-radius: 3px; background: var(--bord); }
+  .haut { position: absolute; left: 12px; right: 12px; top: calc(12px + env(safe-area-inset-top)); display: flex; justify-content: space-between; z-index: 600; pointer-events: none; }
+  .haut > * { pointer-events: auto; background: var(--carte); border-radius: 999px; padding: 8px 14px; font-size: 13px; font-weight: 800; box-shadow: 0 4px 16px rgba(44,34,30,.12); display: flex; align-items: center; gap: 8px; }
+  .opt { display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 52px; border-bottom: 1px solid var(--teinte); }
+  .opt:last-child { border-bottom: 0; }
+  .etapes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; font-size: 11px; font-weight: 800; text-align: center; }
+  .etapes div { padding: 8px 2px; border-radius: 10px; background: var(--teinte); color: var(--doux); }
+  .etapes div.fait { background: var(--sauge); color: #fffbf8; }
+  .etoiles button { width: 54px; height: 54px; border: 0; border-radius: 14px; background: var(--creme); font-size: 28px; color: var(--ambre); }
+  .modal { position: fixed; inset: 0; background: rgba(44,34,30,.45); z-index: 2000; display: flex; align-items: flex-end; justify-content: center; }
+  .modal .boite { background: var(--creme); width: 100%; max-width: 560px; max-height: 92vh; overflow-y: auto; border-radius: 24px 24px 0 0; padding: 18px; }
+  @media print { body * { visibility: hidden; } #facture-imp, #facture-imp * { visibility: visible; } #facture-imp { position: absolute; left: 0; top: 0; width: 100%; } .noimp { display: none !important; } }
+</style>
+</head>
+<body>
+
+<!-- ===== Commander / suivi ===== -->
+<section id="vue-commander">
+  <div id="carte" class="carteMap"></div>
+  <div class="haut"><div><span class="point" style="background: var(--sauge)"></span><span id="libres">…</span></div></div>
+  <div class="feuille"><div class="in">
+    <div class="poignee"></div>
+
+    <!-- Formulaire -->
+    <div id="etat-form" class="pile">
+      <h1 id="t-ou" style="font-size: 26px"></h1>
+      <div class="champ-adresse">
+        <label for="dep" id="t-dep"></label>
+        <input id="dep" autocomplete="off">
+        <div id="dep-sug" class="suggestions cache"></div>
+      </div>
+      <div class="puces" id="favoris-dep"></div>
+      <div class="champ-adresse">
+        <label for="dest" id="t-dest"></label>
+        <input id="dest" autocomplete="off">
+        <div id="dest-sug" class="suggestions cache"></div>
+      </div>
+      <div class="puces" id="favoris-dest"></div>
+
+      <div id="estim" class="carte cache" style="background: var(--teinte); border: 0">
+        <div class="entre"><span class="petit gras doux" id="t-estim"></span><span class="titre" style="font-size: 22px" id="estim-prix"></span></div>
+        <div class="entre petit doux" style="margin-top: 6px"><span id="estim-km"></span><span class="gras" id="estim-tarif"></span></div>
+      </div>
+
+      <div>
+        <label id="t-quand"></label>
+        <div class="segment"><button id="q-now" class="choisi"></button><button id="q-plus"></button></div>
+        <input id="q-date" type="datetime-local" class="cache" style="margin-top: 8px">
+      </div>
+
+      <div>
+        <label id="t-pass"></label>
+        <div class="segment" id="passagers"><button data-n="1" class="choisi">1</button><button data-n="2">2</button><button data-n="3">3</button><button data-n="4">4+</button></div>
+      </div>
+
+      <div class="carte" style="padding: 4px 16px">
+        <div class="opt"><span><div class="gras" style="font-size: 15px" id="t-o1"></div><div class="petit doux" id="t-o1b"></div></span><button class="basculer" data-o="adapte" aria-label="Véhicule adapté"></button></div>
+        <div class="opt"><span><div class="gras" style="font-size: 15px" id="t-o2"></div><div class="petit doux" id="t-o2b"></div></span><button class="basculer" data-o="siege" aria-label="Siège d'enfant"></button></div>
+        <div class="opt"><span><div class="gras" style="font-size: 15px" id="t-o3"></div><div class="petit doux" id="t-o3b"></div></span><button class="basculer" data-o="animal" aria-label="Animal"></button></div>
+        <div class="opt"><span><div class="gras" style="font-size: 15px" id="t-o4"></div><div class="petit doux" id="t-o4b"></div></span><button class="basculer" data-o="bagages" aria-label="Bagages"></button></div>
+      </div>
+      <div><label for="note" id="t-note"></label><textarea id="note" rows="2"></textarea></div>
+      <div id="err-cmd" class="erreur-txt"></div>
+      <button id="commander" class="btn btn-plein btn-large" disabled></button>
+    </div>
+
+    <!-- Suivi de la course -->
+    <div id="etat-suivi" class="pile cache">
+      <div class="entre">
+        <div><div class="petit gras doux" id="s-sous"></div><h1 style="font-size: 26px" id="s-titre"></h1></div>
+        <div id="s-voiture" class="cache" style="width: 58px; height: 58px; border-radius: 18px; background: var(--sauge); color: #fffbf8; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px"></div>
+      </div>
+      <div class="etapes"><div id="e1"></div><div id="e2"></div><div id="e3"></div><div id="e4"></div></div>
+      <div id="s-chauffeur" class="carte cache ligne">
+        <div style="width: 44px; height: 44px; border-radius: 50%; background: var(--sauge-pale); color: var(--sauge-fonce); display: flex; align-items: center; justify-content: center; font-weight: 800" id="s-init"></div>
+        <div><div class="gras" id="s-nom"></div><div class="petit doux" id="s-veh"></div></div>
+      </div>
+      <div class="carte pile" style="gap: 8px; font-size: 14px">
+        <div class="ligne" style="align-items: flex-start"><span class="point" style="background: var(--sauge); margin-top: 6px"></span><span id="s-dep"></span></div>
+        <div class="ligne" style="align-items: flex-start"><span class="point" style="background: var(--terra); border-radius: 2px; margin-top: 6px"></span><span id="s-dest"></span></div>
+        <div class="entre petit"><span class="doux" id="t-sestim"></span><span class="gras" id="s-estim"></span></div>
+      </div>
+      <div class="grille2">
+        <button id="partager" class="btn btn-contour"></button>
+        <a id="appeler" class="btn btn-contour cache" href="#"></a>
+      </div>
+      <button id="annuler" class="btn btn-lien" style="color: var(--terra-fonce)"></button>
+    </div>
+
+    <!-- Fin de course -->
+    <div id="etat-fin" class="pile cache">
+      <div class="petit gras" style="color: var(--sauge-fonce); text-transform: uppercase; letter-spacing: 1px" id="f-sous"></div>
+      <h1 style="font-size: 26px" id="f-titre"></h1>
+      <div class="carte"><div class="entre"><span class="doux" id="t-ftotal"></span><span class="titre" style="font-size: 26px" id="f-total"></span></div><div class="petit doux" id="f-detail" style="margin-top: 6px"></div></div>
+      <div class="etoiles ligne" id="etoiles"></div>
+      <textarea id="f-comm" rows="2"></textarea>
+      <button id="f-envoyer" class="btn btn-plein btn-large"></button>
+    </div>
+  </div></div>
+</section>
+
+<!-- ===== Mes courses ===== -->
+<section id="vue-courses" class="cache"><div class="contenu pile">
+  <h1 style="font-size: 30px" id="t-mescourses"></h1>
+  <div id="avenir" class="pile"></div>
+  <div id="historique" class="pile"></div>
+</div></section>
+
+<!-- ===== Compte ===== -->
+<section id="vue-compte" class="cache"><div class="contenu pile">
+  <div class="ligne" style="gap: 14px">
+    <div id="c-init" style="width: 60px; height: 60px; border-radius: 50%; background: var(--sauge-pale); color: var(--sauge-fonce); display: flex; align-items: center; justify-content: center; font-family: 'Fraunces', serif; font-size: 24px; font-weight: 700"></div>
+    <div><h1 style="font-size: 22px" id="c-nom"></h1><div class="petit doux" id="c-tel"></div></div>
+  </div>
+  <div class="carte pile">
+    <div><label for="c-nomin" id="t-cnom"></label><input id="c-nomin"></div>
+    <div><label for="c-courriel" id="t-ccour"></label><input id="c-courriel" type="email" inputmode="email"></div>
+    <div><label id="t-clang"></label><div class="segment"><button id="cl-fr">Français</button><button id="cl-en">English</button></div></div>
+    <button id="c-sauver" class="btn btn-plein"></button>
+  </div>
+  <h2 style="font-size: 20px; margin-top: 8px" id="t-adr"></h2>
+  <div id="adresses" class="pile" style="gap: 8px"></div>
+  <div class="carte pile">
+    <div class="segment" id="a-noms"><button data-n="Maison" class="choisi"></button><button data-n="Travail"></button><button data-n="Autre"></button></div>
+    <input id="a-autre" class="cache" placeholder="Nom (ex. : Chez maman)">
+    <div class="champ-adresse"><input id="a-adr" autocomplete="off"><div id="a-sug" class="suggestions cache"></div></div>
+    <button id="a-ajout" class="btn btn-contour" disabled></button>
+  </div>
+  <h2 style="font-size: 20px; margin-top: 8px" id="t-secu"></h2>
+  <div class="carte pile">
+    <div><label for="c-nip" id="t-cnip"></label><input id="c-nip" type="password" inputmode="numeric" maxlength="6" style="letter-spacing: 6px; font-weight: 800"></div>
+    <button id="c-nipb" class="btn btn-contour"></button>
+    <button id="c-avis" class="btn btn-contour"></button>
+  </div>
+  <button id="deco" class="btn btn-contour" style="color: var(--terra-fonce)"></button>
+  <p class="petit doux" style="text-align: center" id="t-paie"></p>
+</div></section>
+
+<div id="modal" class="modal cache"><div class="boite" id="modal-boite"></div></div>
+
+<nav class="navbas">
+  <button data-v="commander" class="actif"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.5-7-12a7 7 0 0 1 14 0c0 5.5-7 12-7 12z"></path><circle cx="12" cy="9" r="2.5"></circle></svg><span id="n1"></span></button>
+  <button data-v="courses"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"></path></svg><span id="n2"></span></button>
+  <button data-v="compte"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"></path></svg><span id="n3"></span></button>
+</nav>
+
+<script src="client.js"></script>
+</body>
+</html>

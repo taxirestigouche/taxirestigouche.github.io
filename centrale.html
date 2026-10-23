@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Taxi Restigouche · Centrale</title>
+<meta name="theme-color" content="#5f8570">
+<link rel="manifest" href="manifest-centrale.webmanifest">
+<link rel="apple-touch-icon" href="icones/apple-touch-icon.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="commun.css">
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="commun.js"></script>
+<style>
+  header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 20px; background: var(--carte); border-bottom: 1px solid var(--bord); position: sticky; top: 0; z-index: 1100; }
+  header nav { display: flex; flex-wrap: wrap; gap: 4px; }
+  header nav button { min-height: 42px; padding: 0 12px; border: 0; border-radius: 10px; background: none; font-weight: 700; font-size: 14px; }
+  header nav button.actif { background: var(--sauge-pale); color: var(--sauge-fonce); }
+  .logo { width: 38px; height: 38px; border-radius: 12px; background: var(--sauge); color: #fffbf8; display: flex; align-items: center; justify-content: center; font-family: 'Fraunces', serif; font-weight: 700; font-size: 18px; }
+  main { max-width: 1440px; margin: 0 auto; padding: 16px 20px 40px; }
+  .rangee { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+  .col-g { flex: 1 1 340px; min-width: 0; }
+  .col-c { flex: 999 1 520px; min-width: 0; }
+  .col-d { flex: 1 1 260px; min-width: 0; }
+  #carteR { height: 560px; border-radius: 18px; overflow: hidden; border: 1px solid var(--bord); }
+  .cc { background: var(--carte); border: 1px solid var(--bord); border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+  .cc.attente { border: 2px solid var(--terra); }
+  .tableau { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .tableau th { text-align: left; font-size: 12px; color: var(--doux); padding: 10px 8px; border-bottom: 1px solid var(--bord); }
+  .tableau td { padding: 10px 8px; border-bottom: 1px solid var(--teinte); vertical-align: middle; }
+  .defile { overflow-x: auto; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+  .kpi .v { font-family: 'Fraunces', serif; font-size: 28px; font-weight: 700; }
+  .barres { display: flex; align-items: flex-end; gap: 4px; height: 180px; border-bottom: 1px solid var(--bord); }
+  .barres div { flex: 1; background: var(--sauge); border-radius: 5px 5px 0 0; min-height: 2px; position: relative; }
+  #alerte { background: var(--rouge); color: #fffbf8; padding: 14px 20px; font-weight: 700; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+  .btn-p { min-height: 40px; padding: 0 12px; border-radius: 10px; font-size: 13px; }
+  .modal { position: fixed; inset: 0; background: rgba(44,34,30,.45); z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 16px; }
+  .modal .boite { background: var(--creme); width: 100%; max-width: 560px; max-height: 92vh; overflow-y: auto; border-radius: 22px; padding: 20px; }
+  .h2 { font-family: 'Fraunces', serif; font-size: 20px; font-weight: 700; }
+  @media print { header, #alerte, .noimp { display: none !important; } body { background: #fff; } }
+</style>
+</head>
+<body>
+<div id="alerte" class="cache"></div>
+<header>
+  <div class="ligne"><div class="logo">T</div><div><div class="titre" style="font-size: 18px">Centrale · Taxi Restigouche</div><div class="petit doux" id="moi-nom"></div></div></div>
+  <nav>
+    <button data-v="repartition" class="actif">Répartition</button>
+    <button data-v="rapports">Rapports</button>
+    <button data-v="chauffeurs">Chauffeurs</button>
+    <button data-v="clients">Clients</button>
+    <button data-v="tarifs">Tarifs</button>
+    <button data-v="comptes">Comptes</button>
+    <button data-v="messages" id="nav-msg">Messages</button>
+    <button id="deco">Quitter</button>
+  </nav>
+</header>
+
+<main>
+  <!-- Répartition -->
+  <section id="v-repartition">
+    <div class="puces" style="margin-bottom: 14px" id="compteurs"></div>
+    <div class="rangee">
+      <div class="col-g pile">
+        <div class="entre"><div class="h2">Courses</div><button id="b-appel" class="btn btn-plein btn-p">+ Appel téléphonique</button></div>
+        <div id="f-appel" class="carte pile cache" style="border: 2px solid var(--sauge)">
+          <div class="h2" style="font-size: 17px">Nouvelle course par téléphone</div>
+          <div class="grille2"><div><label for="a-nom">Nom du client</label><input id="a-nom"></div><div><label for="a-tel">Téléphone</label><input id="a-tel" type="tel" placeholder="506 000-0000"></div></div>
+          <div class="champ-adresse"><label for="a-dep">Adresse de départ *</label><input id="a-dep" autocomplete="off" placeholder="Ex. : 43 Tingley Crescent, Campbellton"><div id="a-dep-s" class="suggestions cache"></div></div>
+          <div class="champ-adresse"><label for="a-dest">Destination *</label><input id="a-dest" autocomplete="off" placeholder="Ex. : Hôpital régional de Campbellton"><div id="a-dest-s" class="suggestions cache"></div></div>
+          <div class="grille2">
+            <div><label for="a-pass">Passagers</label><select id="a-pass"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option></select></div>
+            <div><label for="a-compte">Compte client</label><select id="a-compte"><option value="">Aucun (paie à bord)</option></select></div>
+          </div>
+          <div class="puces" id="a-opts"><button class="puce" data-o="adapte">Véhicule adapté</button><button class="puce" data-o="siege">Siège d’enfant</button><button class="puce" data-o="animal">Animal</button><button class="puce" data-o="bagages">Bagages</button></div>
+          <div><label for="a-note">Note au chauffeur</label><input id="a-note"></div>
+          <div><label for="a-quand">Quand ? (vide = maintenant)</label><input id="a-quand" type="datetime-local"></div>
+          <div class="petit doux" id="a-tarif"></div>
+          <div class="erreur-txt" id="a-err"></div>
+          <button id="a-envoyer" class="btn btn-plein" disabled>Entrez le départ et la destination</button>
+        </div>
+        <div id="liste-courses" class="pile"></div>
+      </div>
+      <div class="col-c pile">
+        <div class="entre"><div class="h2">Carte en direct</div><div class="segment"><button id="z-region" class="choisi">Toute la région</button><button id="z-ville">Campbellton</button></div></div>
+        <div id="carteR" class="carteMap"></div>
+      </div>
+      <div class="col-d pile">
+        <div class="h2">Chauffeurs</div>
+        <div id="liste-ch" class="pile" style="gap: 8px"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Rapports -->
+  <section id="v-rapports" class="cache pile">
+    <div class="entre" style="flex-wrap: wrap">
+      <h1 style="font-size: 28px">Rapports</h1>
+      <div class="ligne" style="flex-wrap: wrap">
+        <div class="segment" id="periodes"><button data-p="jour" class="choisi">Aujourd’hui</button><button data-p="7">7 jours</button><button data-p="30">30 jours</button><button data-p="mois">Ce mois</button></div>
+        <button id="b-csv" class="btn btn-contour btn-p">Exporter (Excel / CSV)</button>
+      </div>
+    </div>
+    <div class="kpis" id="kpis"></div>
+    <div class="rangee">
+      <div class="carte col-c pile"><div class="h2" style="font-size: 17px">Courses par heure</div><div class="barres" id="barres"></div><div class="ligne petit doux" style="justify-content: space-between"><span>0 h</span><span>6 h</span><span>12 h</span><span>18 h</span><span>23 h</span></div></div>
+      <div class="carte col-g pile"><div class="h2" style="font-size: 17px">Par ville de départ</div><div id="villes"></div></div>
+    </div>
+    <div class="carte"><div class="h2" style="font-size: 17px; margin-bottom: 8px">Par chauffeur</div><div class="defile"><table class="tableau" id="t-chauffeurs"></table></div></div>
+    <div class="carte"><div class="h2" style="font-size: 17px; margin-bottom: 8px">Historique des courses</div><div class="defile"><table class="tableau" id="t-hist"></table></div></div>
+  </section>
+
+  <!-- Chauffeurs -->
+  <section id="v-chauffeurs" class="cache pile">
+    <div class="entre"><h1 style="font-size: 28px">Chauffeurs et véhicules</h1><button id="b-nouveau" class="btn btn-plein btn-p">+ Ajouter un chauffeur</button></div>
+    <div id="f-nouveau" class="carte pile cache">
+      <div class="h2" style="font-size: 17px">Nouveau chauffeur</div>
+      <div class="grille2">
+        <div><label for="n-nom">Nom complet *</label><input id="n-nom"></div>
+        <div><label for="n-tel">Cellulaire *</label><input id="n-tel" type="tel"></div>
+        <div><label for="n-nip">NIP de départ (4 à 6 chiffres) *</label><input id="n-nip" inputmode="numeric" maxlength="6"></div>
+        <div><label for="n-voit">N° de voiture</label><input id="n-voit" placeholder="Ex. : V12"></div>
+        <div><label for="n-veh">Véhicule</label><input id="n-veh" placeholder="Modèle, année, couleur"></div>
+        <div><label for="n-pl">Plaque</label><input id="n-pl"></div>
+      </div>
+      <div class="petit doux">Donne au chauffeur son numéro et son NIP : il se connecte sur la même adresse que les clients et arrive directement dans l’appli chauffeur. Il pourra changer son NIP dans « Dossier ».</div>
+      <div class="erreur-txt" id="n-err"></div>
+      <button id="n-creer" class="btn btn-plein" style="align-self: flex-start">Créer le compte chauffeur</button>
+    </div>
+    <div class="carte defile"><table class="tableau" id="t-ch"></table></div>
+  </section>
+
+  <!-- Clients -->
+  <section id="v-clients" class="cache pile">
+    <div class="entre"><h1 style="font-size: 28px">Clients</h1><input id="cl-rech" placeholder="Rechercher un nom ou un numéro" style="max-width: 320px"></div>
+    <div class="carte defile"><table class="tableau" id="t-cl"></table></div>
+  </section>
+
+  <!-- Tarifs -->
+  <section id="v-tarifs" class="cache pile">
+    <h1 style="font-size: 28px">Tarifs du compteur</h1>
+    <p class="doux" style="margin: 0">Le tarif dépend de la province où la course commence. Les montants du compteur incluent les taxes. Remplace les montants d’exemple par les tarifs autorisés.</p>
+    <div class="rangee" id="tarifs-cartes"></div>
+  </section>
+
+  <!-- Comptes -->
+  <section id="v-comptes" class="cache pile">
+    <div class="entre"><h1 style="font-size: 28px">Comptes clients réguliers</h1><button id="b-compte" class="btn btn-plein btn-p">+ Nouveau compte</button></div>
+    <div id="f-compte" class="carte pile cache">
+      <div class="grille2"><div><label for="co-nom">Nom *</label><input id="co-nom" placeholder="Ex. : Clinique…"></div><div><label for="co-type">Type</label><input id="co-type" placeholder="Clinique, résidence, entreprise…"></div><div><label for="co-contact">Contact</label><input id="co-contact" placeholder="Nom, courriel, téléphone"></div><div><label for="co-cond">Conditions</label><input id="co-cond" value="Facture mensuelle, 30 jours"></div></div>
+      <button id="co-creer" class="btn btn-plein" style="align-self: flex-start">Créer le compte</button>
+    </div>
+    <div id="liste-comptes" class="pile"></div>
+  </section>
+
+  <!-- Messages -->
+  <section id="v-messages" class="cache pile">
+    <h1 style="font-size: 28px">Messages aux chauffeurs</h1>
+    <div class="rangee">
+      <div class="carte col-g pile">
+        <div><label for="m-a">Envoyer à</label><select id="m-a"><option value="">Tous les chauffeurs</option></select></div>
+        <div><label for="m-txt">Message</label><textarea id="m-txt" rows="4" placeholder="Ex. : travaux sur le pont, prévoyez 5 minutes de plus"></textarea></div>
+        <div class="puces" id="m-modeles"></div>
+        <button id="m-envoyer" class="btn btn-plein" style="align-self: flex-start">Envoyer</button>
+      </div>
+      <div class="carte col-c pile"><div class="h2" style="font-size: 17px">Fil des messages</div><div id="m-fil" class="pile" style="gap: 8px"></div></div>
+    </div>
+  </section>
+</main>
+
+<div id="modal" class="modal cache"><div class="boite pile" id="modal-boite"></div></div>
+<script src="centrale.js"></script>
+</body>
+</html>

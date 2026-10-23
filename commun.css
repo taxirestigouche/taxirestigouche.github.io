@@ -1,0 +1,87 @@
+/* Taxi Restigouche — styles communs (couleurs de l'Académie Sérénaissance) */
+:root {
+  --creme: #f7f1ea; --carte: #fffbf8; --teinte: #efe6dc; --bord: #e3d5c8;
+  --texte: #2c221e; --doux: #7a685e; --sauge: #5f8570; --sauge-fonce: #3d5a4a; --sauge-pale: #e7f0ea;
+  --terra: #a85743; --terra-fonce: #8e4634; --terra-pale: #f6e7df;
+  --ambre: #a8741f; --ambre-fonce: #7a5414; --ambre-pale: #fbf1dc; --rouge: #b23b3b;
+  --nuit: #2c221e; --nuit-2: #3a2f29; --nuit-3: #4a3d35; --nuit-doux: #d8cbbf;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body { background: var(--creme); color: var(--texte); font-family: 'Inter', system-ui, -apple-system, sans-serif; font-size: 16px; -webkit-tap-highlight-color: transparent; }
+h1, h2, h3, .titre { font-family: 'Fraunces', Georgia, serif; font-weight: 700; margin: 0; }
+a { color: var(--sauge-fonce); }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+input, select, textarea { width: 100%; min-height: 50px; padding: 0 14px; border-radius: 14px; border: 1px solid var(--bord); background: var(--carte); font-size: 16px; }
+textarea { padding: 12px 14px; min-height: 80px; resize: vertical; }
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--sauge); outline-offset: 1px; }
+label { display: block; font-size: 13px; font-weight: 700; color: var(--doux); margin: 0 0 6px; }
+.cache { display: none !important; }
+.ligne { display: flex; gap: 10px; align-items: center; }
+.entre { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.pile { display: flex; flex-direction: column; gap: 12px; }
+.grille2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.doux { color: var(--doux); }
+.petit { font-size: 13px; }
+.gras { font-weight: 800; }
+
+.btn { min-height: 52px; padding: 0 18px; border-radius: 16px; border: 0; font-weight: 800; font-size: 16px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; }
+.btn-plein { background: var(--sauge); color: #fffbf8; }
+.btn-terra { background: var(--terra); color: #fffbf8; }
+.btn-rouge { background: var(--rouge); color: #fffbf8; }
+.btn-ambre { background: var(--ambre-pale); color: var(--texte); }
+.btn-contour { background: var(--carte); color: var(--texte); border: 1px solid var(--bord); }
+.btn-lien { background: none; border: 0; color: var(--sauge-fonce); font-weight: 700; text-decoration: underline; min-height: 44px; padding: 0; }
+.btn-large { width: 100%; }
+.btn:disabled { background: var(--teinte); color: var(--doux); cursor: default; }
+.carte { background: var(--carte); border: 1px solid var(--bord); border-radius: 18px; padding: 16px; }
+.pastille { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 800; white-space: nowrap; }
+.p-dispo { background: var(--sauge-pale); color: var(--sauge-fonce); }
+.p-course { background: var(--terra-pale); color: var(--terra-fonce); }
+.p-pause { background: var(--ambre-pale); color: var(--ambre-fonce); }
+.p-hors { background: var(--teinte); color: var(--doux); }
+.point { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.puces { display: flex; flex-wrap: wrap; gap: 8px; }
+.puce { min-height: 44px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--bord); background: var(--carte); font-weight: 700; font-size: 14px; }
+.puce.choisie { background: var(--sauge); border-color: var(--sauge); color: #fffbf8; }
+.segment { display: flex; gap: 4px; padding: 4px; border-radius: 14px; background: var(--teinte); }
+.segment button { flex: 1; min-height: 44px; border: 0; border-radius: 11px; background: transparent; font-weight: 800; font-size: 14px; }
+.segment button.choisi { background: var(--carte); }
+
+.suggestions { border: 1px solid var(--bord); border-radius: 16px; overflow: hidden; background: var(--carte); margin-top: 6px; }
+.suggestions button { display: flex; width: 100%; justify-content: space-between; align-items: center; gap: 10px; min-height: 54px; padding: 8px 14px; border: 0; border-bottom: 1px solid var(--teinte); background: var(--carte); text-align: left; }
+.suggestions button:last-child { border-bottom: 0; }
+.suggestions .s1 { font-weight: 700; font-size: 15px; }
+.suggestions .s2 { font-size: 12px; color: var(--doux); }
+.champ-adresse { position: relative; }
+.confirmee { position: absolute; right: 10px; top: 13px; }
+
+.navbas { position: fixed; left: 0; right: 0; bottom: 0; display: flex; background: var(--carte); border-top: 1px solid var(--bord); padding-bottom: env(safe-area-inset-bottom); z-index: 1000; }
+.navbas button { flex: 1; min-height: 60px; border: 0; background: none; font-size: 12px; font-weight: 700; color: var(--doux); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; }
+.navbas button.actif { color: var(--sauge-fonce); }
+.navbas svg { width: 22px; height: 22px; }
+.sombre .navbas { background: var(--nuit-2); border-color: var(--nuit-3); }
+.sombre .navbas button { color: var(--nuit-doux); }
+.sombre .navbas button.actif { color: #fffbf8; }
+
+.toast { position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%); background: var(--texte); color: #fffbf8; padding: 12px 18px; border-radius: 14px; font-size: 14px; font-weight: 600; z-index: 3000; max-width: calc(100% - 32px); box-shadow: 0 6px 20px rgba(44,34,30,.25); }
+.toast.erreur { background: var(--rouge); }
+.erreur-txt { color: var(--terra-fonce); font-size: 13px; font-weight: 700; }
+
+.carteMap { width: 100%; height: 100%; background: #f3ece3; }
+.leaflet-container { font-family: 'Inter', system-ui, sans-serif; }
+.marq { padding: 3px 7px; border-radius: 8px; background: #fffbf8; border: 2.5px solid var(--sauge); color: var(--texte); font-size: 11px; font-weight: 800; white-space: nowrap; box-shadow: 0 2px 8px rgba(44,34,30,.2); transform: translate(-50%, -50%); display: inline-block; }
+.marq-moi { width: 18px; height: 18px; border-radius: 50%; background: var(--terra); border: 4px solid #fffbf8; box-shadow: 0 0 0 6px rgba(168,87,67,.2); transform: translate(-50%, -50%); }
+.marq-dest { width: 16px; height: 16px; border-radius: 4px; background: var(--terra); border: 3px solid #fffbf8; transform: translate(-50%, -50%); }
+.marq-dep { width: 16px; height: 16px; border-radius: 50%; background: var(--sauge); border: 3px solid #fffbf8; transform: translate(-50%, -50%); }
+.marq-client { padding: 3px 7px; border-radius: 8px 8px 8px 0; background: var(--terra); color: #fffbf8; font-size: 11px; font-weight: 800; white-space: nowrap; transform: translate(0, -100%); display: inline-block; }
+
+.ligne-tab { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--teinte); font-size: 14px; }
+.ligne-tab:last-child { border-bottom: 0; }
+.vide { text-align: center; color: var(--doux); padding: 24px 12px; font-size: 14px; }
+.contenu { max-width: 560px; margin: 0 auto; padding: 18px 18px 100px; }
+.basculer { width: 46px; height: 28px; border-radius: 14px; background: #d9cbbd; position: relative; flex: none; border: 0; }
+.basculer::after { content: ''; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fffbf8; transition: left .15s; }
+.basculer.on { background: var(--sauge); }
+.basculer.on::after { left: 21px; }

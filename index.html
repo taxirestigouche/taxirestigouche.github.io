@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Taxi Restigouche</title>
+<meta name="description" content="Commandez votre taxi à Campbellton, Listuguj, Pointe-à-la-Croix, Dalhousie et toute la région.">
+<meta name="theme-color" content="#5f8570">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icones/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="commun.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="commun.js"></script>
+<style>
+  .page { min-height: 100vh; display: flex; flex-direction: column; max-width: 460px; margin: 0 auto; padding: 28px 22px 32px; gap: 22px; }
+  .logo { width: 56px; height: 56px; border-radius: 16px; background: var(--sauge); color: #fffbf8; display: flex; align-items: center; justify-content: center; font-family: 'Fraunces', serif; font-weight: 700; font-size: 28px; }
+  .nip { letter-spacing: 8px; font-size: 22px; font-weight: 800; text-align: center; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="entre">
+    <div class="logo">T</div>
+    <div class="segment" style="width: 120px"><button id="l-fr" class="choisi">FR</button><button id="l-en">EN</button></div>
+  </div>
+
+  <div id="chargement" class="vide">Chargement…</div>
+
+  <div id="formulaire" class="pile cache">
+    <h1 id="t-titre" style="font-size: 32px; line-height: 1.15">Bienvenue chez Taxi Restigouche</h1>
+    <p id="t-intro" class="doux" style="margin: 0; line-height: 1.5">Commandez votre taxi en quelques secondes, partout entre Saint-Quentin, Bathurst et Carleton-sur-Mer.</p>
+
+    <div class="segment"><button id="m-con" class="choisi">Me connecter</button><button id="m-ins">Créer mon compte</button></div>
+
+    <form id="f" class="pile" autocomplete="on">
+      <div id="bloc-nom" class="cache"><label for="nom" id="t-nom">Votre nom</label><input id="nom" autocomplete="name"></div>
+      <div><label for="tel" id="t-tel">Numéro de cellulaire</label><input id="tel" type="tel" inputmode="tel" autocomplete="tel" placeholder="506 000-0000"></div>
+      <div><label for="nip" id="t-nip">NIP (4 à 6 chiffres)</label><input id="nip" class="nip" type="password" inputmode="numeric" maxlength="6" autocomplete="current-password" placeholder="••••"></div>
+      <div id="bloc-nip2" class="cache"><label for="nip2" id="t-nip2">Confirmer le NIP</label><input id="nip2" class="nip" type="password" inputmode="numeric" maxlength="6" placeholder="••••"></div>
+      <div id="err" class="erreur-txt"></div>
+      <button id="go" class="btn btn-plein btn-large" type="submit">Me connecter</button>
+    </form>
+    <p id="t-oubli" class="petit doux" style="margin: 0; line-height: 1.5">NIP oublié ? Appelez la centrale : elle peut vous en donner un nouveau.</p>
+  </div>
+
+  <div style="flex: 1"></div>
+  <p class="petit doux" style="margin: 0; text-align: center">Paiement à bord seulement · comptant ou carte</p>
+</div>
+
+<script>
+(function () {
+  var T = Taxi, mode = 'con', langue = localStorage.getItem('taxi-langue') || 'fr';
+  var TXT = {
+    fr: { titre: 'Bienvenue chez Taxi Restigouche', intro: 'Commandez votre taxi en quelques secondes, partout entre Saint-Quentin, Bathurst et Carleton-sur-Mer.', con: 'Me connecter', ins: 'Créer mon compte', nom: 'Votre nom', tel: 'Numéro de cellulaire', nip: 'NIP (4 à 6 chiffres)', nip2: 'Confirmer le NIP', oubli: 'NIP oublié ? Appelez la centrale : elle peut vous en donner un nouveau.', diff: 'Les deux NIP ne sont pas pareils.', nipf: 'Le NIP doit avoir de 4 à 6 chiffres.', nomf: 'Entrez votre nom.' },
+    en: { titre: 'Welcome to Taxi Restigouche', intro: 'Book your taxi in seconds, anywhere between Saint-Quentin, Bathurst and Carleton-sur-Mer.', con: 'Log in', ins: 'Create my account', nom: 'Your name', tel: 'Cell number', nip: 'PIN (4 to 6 digits)', nip2: 'Confirm PIN', oubli: 'Forgot your PIN? Call the dispatch: they can give you a new one.', diff: 'The two PINs don’t match.', nipf: 'The PIN must have 4 to 6 digits.', nomf: 'Enter your name.' }
+  };
+  function textes() {
+    var t = TXT[langue];
+    T.$('#t-titre').textContent = t.titre; T.$('#t-intro').textContent = t.intro; T.$('#m-con').textContent = t.con; T.$('#m-ins').textContent = t.ins;
+    T.$('#t-nom').textContent = t.nom; T.$('#t-tel').textContent = t.tel; T.$('#t-nip').textContent = t.nip; T.$('#t-nip2').textContent = t.nip2; T.$('#t-oubli').textContent = t.oubli;
+    T.$('#go').textContent = mode === 'con' ? t.con : t.ins;
+    T.$('#l-fr').classList.toggle('choisi', langue === 'fr'); T.$('#l-en').classList.toggle('choisi', langue === 'en');
+    document.documentElement.lang = langue;
+  }
+  function setMode(m) {
+    mode = m;
+    T.$('#m-con').classList.toggle('choisi', m === 'con'); T.$('#m-ins').classList.toggle('choisi', m === 'ins');
+    T.$('#bloc-nom').classList.toggle('cache', m === 'con'); T.$('#bloc-nip2').classList.toggle('cache', m === 'con');
+    T.$('#nip').autocomplete = m === 'con' ? 'current-password' : 'new-password';
+    T.$('#err').textContent = ''; textes();
+  }
+  T.$('#m-con').onclick = function () { setMode('con'); };
+  T.$('#m-ins').onclick = function () { setMode('ins'); };
+  T.$('#l-fr').onclick = function () { langue = 'fr'; localStorage.setItem('taxi-langue', 'fr'); textes(); };
+  T.$('#l-en').onclick = function () { langue = 'en'; localStorage.setItem('taxi-langue', 'en'); textes(); };
+
+  function aller(p) {
+    if (!p || !p.actif) { T.$('#err').textContent = langue === 'en' ? 'This account is suspended. Call the dispatch.' : 'Ce compte est suspendu. Appelez la centrale.'; T.sb.auth.signOut(); return; }
+    location.replace(p.role === 'centrale' ? 'centrale.html' : p.role === 'chauffeur' ? 'chauffeur.html' : 'client.html');
+  }
+
+  T.$('#f').onsubmit = async function (e) {
+    e.preventDefault();
+    var t = TXT[langue], err = T.$('#err'), b = T.$('#go');
+    err.textContent = '';
+    var tel = T.$('#tel').value, nip = T.$('#nip').value.trim();
+    if (!/^\d{4,6}$/.test(nip)) { err.textContent = t.nipf; return; }
+    if (mode === 'ins') {
+      if (!T.$('#nom').value.trim()) { err.textContent = t.nomf; return; }
+      if (nip !== T.$('#nip2').value.trim()) { err.textContent = t.diff; return; }
+    }
+    b.disabled = true;
+    try {
+      if (mode === 'ins') await T.inscription(tel, nip, T.$('#nom').value.trim());
+      else await T.connexion(tel, nip);
+      aller(await T.monProfil());
+    } catch (x) { err.textContent = T.erreurMsg(x); }
+    b.disabled = false;
+  };
+
+  (async function () {
+    textes();
+    var s = (await T.sb.auth.getSession()).data.session;
+    if (s) { var p = await T.monProfil(); if (p) { aller(p); return; } }
+    T.$('#chargement').classList.add('cache'); T.$('#formulaire').classList.remove('cache');
+    if (location.hash === '#inscription') setMode('ins');
+  })();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,37 @@
+{
+  "name": "Taxi Restigouche",
+  "short_name": "Taxi Restigouche",
+  "description": "Commandez votre taxi à Campbellton, Listuguj, Pointe-à-la-Croix, Dalhousie et toute la région.",
+  "lang": "fr",
+  "id": "./index.html",
+  "start_url": "index.html?source=appli",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f7f1ea",
+  "theme_color": "#5f8570",
+  "categories": [
+    "travel",
+    "navigation"
+  ],
+  "icons": [
+    {
+      "src": "icones/icone-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icones/icone-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icones/icone-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
